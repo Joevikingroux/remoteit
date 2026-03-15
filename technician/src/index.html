@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Numbers10 RemoteIT</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+
+  <!-- LOGIN VIEW -->
+  <div id="login-view" class="view active">
+    <div class="login-container">
+      <div class="login-card">
+        <img src="assets/logo.jpg" alt="Numbers10" class="login-logo" />
+        <h1>Numbers10 RemoteIT</h1>
+        <p class="subtitle">Technician Login</p>
+        <form id="login-form" autocomplete="on">
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" placeholder="you@numbers10.co.za" required autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+          </div>
+          <button type="submit" id="login-btn" class="btn-primary">Sign In</button>
+          <p id="login-error" class="error-text hidden"></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashboard-view" class="view">
+    <div class="topbar">
+      <div class="topbar-left">
+        <img src="assets/logo.jpg" alt="Numbers10" class="topbar-logo" />
+        <span class="topbar-title">Numbers10 RemoteIT</span>
+      </div>
+      <div class="topbar-right">
+        <span id="user-name" class="user-label"></span>
+        <button id="logout-btn" class="btn-ghost">Logout</button>
+      </div>
+    </div>
+
+    <div class="dashboard-content">
+      <!-- Code Entry -->
+      <div class="code-entry-card">
+        <h2>Connect to Session</h2>
+        <div class="code-input-row">
+          <input type="text" id="session-code" placeholder="Enter 6-digit code" maxlength="6" />
+          <button id="connect-btn" class="btn-primary">Connect</button>
+        </div>
+        <p id="connect-error" class="error-text hidden"></p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-active">0</div>
+          <div class="stat-label">Active Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-today">0</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-avg">0m</div>
+          <div class="stat-label">Avg Duration</div>
+        </div>
+      </div>
+
+      <!-- Active Sessions -->
+      <div class="sessions-section">
+        <h3>Active Sessions</h3>
+        <div id="sessions-grid" class="sessions-grid">
+          <p class="empty-text">No active sessions</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSION VIEW -->
+  <div id="session-view" class="view">
+    <!-- Toolbar -->
+    <div class="session-toolbar">
+      <div class="toolbar-left">
+        <button id="back-btn" class="btn-ghost">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <span class="toolbar-sep">|</span>
+        <span id="session-code-display" class="code-label"></span>
+      </div>
+      <div class="toolbar-right">
+        <div id="clipboard-buttons" class="hidden">
+          <button id="paste-to-client" class="btn-toolbar" title="Send your clipboard to client">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            Paste to Client
+          </button>
+          <button id="copy-from-client" class="btn-toolbar" title="Get clipboard from client">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Copy from Client
+          </button>
+          <button id="send-file-btn" class="btn-toolbar" title="Send file to client">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Send File
+          </button>
+          <span class="toolbar-sep">|</span>
+        </div>
+
+        <button id="control-btn" class="btn-warning hidden">Request Control</button>
+        <button id="release-btn" class="btn-danger hidden">Release Control</button>
+
+        <span id="peer-status" class="status-badge waiting">
+          <span class="status-dot"></span>
+          Waiting for client...
+        </span>
+
+        <button id="end-session-btn" class="btn-danger">End Session</button>
+      </div>
+    </div>
+
+    <!-- Status bars -->
+    <div id="clipboard-status" class="status-bar hidden"></div>
+    <div id="file-status" class="status-bar hidden"></div>
+    <div id="control-active-bar" class="control-bar hidden">
+      REMOTE CONTROL ACTIVE — Mouse and keyboard input is being sent to the client
+    </div>
+
+    <!-- Video Area -->
+    <div id="video-container" class="video-area">
+      <video id="remote-video" autoplay playsinline></video>
+      <div id="video-placeholder" class="video-placeholder">
+        <svg width="96" height="96" fill="none" stroke="currentColor" viewBox="0 0 24 24" opacity="0.3">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <p>Waiting for client to share their screen...</p>
+      </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-bar">
+      <span id="conn-state">Disconnected</span>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/socket-manager.js"></script>
+  <script src="js/webrtc-manager.js"></script>
+  <script src="js/clipboard-sync.js"></script>
+  <script src="js/file-transfer.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

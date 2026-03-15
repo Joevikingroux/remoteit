@@ -1,0 +1,17 @@
+{
+  "name": "remoteit-technician",
+  "version": "1.0.0",
+  "description": "Numbers10 Remote IT Support - Technician Desktop App",
+  "author": {
+    "name": "Numbers10 IT",
+    "email": "joe@numbers10.co.za"
+  },
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1"
+  }
+}

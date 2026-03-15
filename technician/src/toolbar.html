@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    .toolbar {
+      background: #1A1A2E;
+      border: 1px solid #FF5252;
+      border-radius: 0 0 12px 12px;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      height: 44px;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #FF5252;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: #FF5252;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .btn {
+      -webkit-app-region: no-drag;
+      background: #FF5252;
+      color: white;
+      border: none;
+      padding: 4px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: #ff3333; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="status">
+      <span class="dot"></span>
+      Remote Control Active
+    </div>
+    <button class="btn" onclick="releaseControl()">Release Control</button>
+  </div>
+  <script>
+    async function releaseControl() {
+      // Emit event to main window
+      const { emit } = window.__TAURI__.event;
+      await emit('toolbar-release-control');
+    }
+  </script>
+</body>
+</html>

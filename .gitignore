@@ -8,3 +8,6 @@ server/data/*.db-wal
 *.log
 .DS_Store
 desktop.ini
+technician/src-tauri/target/
+technician/src-tauri/gen/
+downloads/*.exe
