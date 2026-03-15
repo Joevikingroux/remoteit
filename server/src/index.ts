@@ -14,6 +14,7 @@ import { createSocketServer } from './signaling/socketServer';
 import { cleanupExpiredSessions } from './services/session.service';
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Nginx)
 const server = http.createServer(app);
 
 // Middleware
