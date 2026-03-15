@@ -91,6 +91,42 @@ export function registerHandlers(io: Server, socket: Socket) {
     }
   });
 
+  // ── Control flow messages ──
+  socket.on('control-request', (data: { sessionCode: string; technicianName: string }) => {
+    const code = data.sessionCode.toUpperCase();
+    const sigSession = getSignalingSession(code);
+    if (!sigSession || !sigSession.clientSocketId) return;
+
+    io.to(sigSession.clientSocketId).emit('control-request', { technicianName: data.technicianName });
+    logAudit({ sessionId: sigSession.sessionId, actor: 'technician', action: 'control_requested' });
+  });
+
+  socket.on('control-response', (data: { sessionCode: string; granted: boolean }) => {
+    const code = data.sessionCode.toUpperCase();
+    const sigSession = getSignalingSession(code);
+    if (!sigSession || !sigSession.techSocketId) return;
+
+    io.to(sigSession.techSocketId).emit('control-response', { granted: data.granted });
+    if (data.granted) {
+      updateSessionStatus(code, 'control_active');
+    }
+    logAudit({
+      sessionId: sigSession.sessionId,
+      actor: 'client',
+      action: data.granted ? 'control_granted' : 'control_denied',
+    });
+  });
+
+  socket.on('control-revoke', (data: { sessionCode: string; reason?: string }) => {
+    const code = data.sessionCode.toUpperCase();
+    const sigSession = getSignalingSession(code);
+    if (!sigSession || !sigSession.techSocketId) return;
+
+    io.to(sigSession.techSocketId).emit('control-revoke', { reason: data.reason || 'client_initiated' });
+    updateSessionStatus(code, 'view_only');
+    logAudit({ sessionId: sigSession.sessionId, actor: 'client', action: 'control_revoked' });
+  });
+
   socket.on('disconnect', () => {
     const found = findSessionBySocketId(socket.id);
     if (!found) return;

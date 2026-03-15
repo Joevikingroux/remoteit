@@ -5,9 +5,10 @@ interface Props {
   peerConnected: boolean;
   connectionState: string;
   code: string;
+  controlActive?: boolean;
 }
 
-export default function ConnectionStatus({ connected, peerConnected, connectionState, code }: Props) {
+export default function ConnectionStatus({ connected, peerConnected, connectionState, code, controlActive }: Props) {
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function ConnectionStatus({ connected, peerConnected, connectionS
         <span>WebRTC: <span className="text-gray-300">{connType}</span></span>
       </div>
       <div className="flex items-center gap-4">
-        <span>Mode: <span className="text-blue-400">View Only</span></span>
+        <span>Mode: {controlActive ? <span className="text-red-400">Remote Control</span> : <span className="text-blue-400">View Only</span>}</span>
         {peerConnected && <span>Duration: <span className="text-gray-300 font-mono">{formatDuration(duration)}</span></span>}
       </div>
     </div>

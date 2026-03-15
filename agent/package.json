@@ -1,0 +1,42 @@
+{
+  "name": "remoteit-agent",
+  "version": "1.0.0",
+  "description": "RemoteIT Desktop Support Agent",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win portable",
+    "build:win:installer": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.numbers10.remoteit-agent",
+    "productName": "RemoteIT Support",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "renderer/icon.ico"
+    },
+    "portable": {
+      "artifactName": "RemoteIT-Support.${ext}"
+    }
+  }
+}
