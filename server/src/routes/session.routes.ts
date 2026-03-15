@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sessionCreateLimiter, codeClaimLimiter } from '../middleware/rateLimiter';
 import * as sessionService from '../services/session.service';
+import db from '../config/db';
 
 const router = Router();
 
@@ -11,6 +12,56 @@ router.post('/create', sessionCreateLimiter, (req: Request, res: Response) => {
     const userAgent = req.headers['user-agent'];
     const session = sessionService.createSession(clientIp, userAgent);
     res.json(session);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Must be before /:code routes so "history" isn't matched as a code param
+router.get('/', authMiddleware, (_req: AuthRequest, res: Response) => {
+  const sessions = sessionService.getActiveSessions();
+  res.json(sessions);
+});
+
+router.get('/history', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const offset = (page - 1) * limit;
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (search) {
+      conditions.push('s.code LIKE ?');
+      params.push(`%${search.toUpperCase()}%`);
+    }
+
+    if (status) {
+      conditions.push('s.status = ?');
+      params.push(status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const totalRow = db.prepare(
+      `SELECT COUNT(*) as count FROM sessions s ${whereClause}`
+    ).get(...params) as { count: number };
+
+    const total = totalRow.count;
+    const totalPages = Math.ceil(total / limit);
+
+    const sessions = db.prepare(
+      `SELECT s.*, t.name as technician_name FROM sessions s
+       LEFT JOIN technicians t ON s.technician_id = t.id
+       ${whereClause}
+       ORDER BY s.created_at DESC
+       LIMIT ? OFFSET ?`
+    ).all(...params, limit, offset);
+
+    res.json({ sessions, total, page, totalPages });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -52,11 +103,6 @@ router.post('/:code/end', (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
-});
-
-router.get('/', authMiddleware, (_req: AuthRequest, res: Response) => {
-  const sessions = sessionService.getActiveSessions();
-  res.json(sessions);
 });
 
 export default router;

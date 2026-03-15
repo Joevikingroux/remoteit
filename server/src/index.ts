@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth.routes';
 import sessionRoutes from './routes/session.routes';
 import statsRoutes from './routes/stats.routes';
+import adminRoutes from './routes/admin.routes';
 import { createSocketServer } from './signaling/socketServer';
 import { cleanupExpiredSessions } from './services/session.service';
 
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Agent downloads
 const downloadsDir = path.resolve(__dirname, '../../downloads');

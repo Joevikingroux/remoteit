@@ -24,4 +24,31 @@ router.get('/dashboard', authMiddleware, (_req: AuthRequest, res: Response) => {
   });
 });
 
+router.get('/audit-log', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const offset = (page - 1) * limit;
+
+    const totalRow = db.prepare(
+      'SELECT COUNT(*) as count FROM audit_log'
+    ).get() as { count: number };
+
+    const total = totalRow.count;
+    const totalPages = Math.ceil(total / limit);
+
+    const entries = db.prepare(
+      `SELECT a.*, s.code as session_code, s.status as session_status
+       FROM audit_log a
+       LEFT JOIN sessions s ON a.session_id = s.id
+       ORDER BY a.timestamp DESC
+       LIMIT ? OFFSET ?`
+    ).all(limit, offset);
+
+    res.json({ entries, total, page, totalPages });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
