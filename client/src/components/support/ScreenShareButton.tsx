@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSocket } from '../../hooks/useSocket';
 import { useWebRTC } from '../../hooks/useWebRTC';
 
@@ -66,13 +66,13 @@ export default function ScreenShareButton({ sessionCode, onPeerConnected, onPeer
   if (localStream) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-center gap-2 text-green-600 text-sm">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+        <div className="flex items-center justify-center gap-2 text-n10-success text-sm">
+          <span className="w-2 h-2 bg-n10-danger rounded-full animate-pulse" />
           Screen sharing active
         </div>
         <button
           onClick={stopSharing}
-          className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+          className="w-full bg-n10-danger hover:bg-n10-danger/80 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
         >
           Stop Sharing
         </button>
@@ -82,11 +82,11 @@ export default function ScreenShareButton({ sessionCode, onPeerConnected, onPeer
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500">Share your screen so the technician can see your issue</p>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      <p className="text-sm text-n10-text-dim">Share your screen so the technician can see your issue</p>
+      {error && <p className="text-sm text-n10-danger">{error}</p>}
       <button
         onClick={startSharing}
-        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+        className="w-full bg-n10-success hover:bg-n10-success/80 text-n10-bg font-semibold py-3 px-6 rounded-xl transition-colors"
       >
         Share Screen in Browser
       </button>

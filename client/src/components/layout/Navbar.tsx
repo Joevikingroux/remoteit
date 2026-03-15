@@ -11,18 +11,16 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-blue-600 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+    <nav className="bg-n10-mid border-b border-n10-border px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-          <span className="text-blue-600 font-bold text-sm">IT</span>
-        </div>
-        <span className="font-semibold text-lg">RemoteIT Dashboard</span>
+        <img src="/logo.png" alt="Numbers10" className="h-8 w-auto" />
+        <span className="font-semibold text-lg text-n10-text">Numbers10 Dashboard</span>
       </div>
       <div className="flex items-center gap-4">
-        <span className="text-sm opacity-90">{user?.name}</span>
+        <span className="text-sm text-n10-text-dim">{user?.name}</span>
         <button
           onClick={handleLogout}
-          className="bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded text-sm transition-colors"
+          className="bg-n10-surface hover:bg-n10-border text-n10-text px-3 py-1.5 rounded-lg text-sm transition-colors border border-n10-border"
         >
           Logout
         </button>

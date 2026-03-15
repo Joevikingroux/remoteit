@@ -25,40 +25,38 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
+    <div className="min-h-screen bg-n10-bg flex items-center justify-center p-6">
+      <div className="bg-n10-mid rounded-2xl border border-n10-border max-w-md w-full p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-xl">IT</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">RemoteIT</h1>
-          <p className="text-gray-500 mt-1">Technician Dashboard</p>
+          <img src="/logo.png" alt="Numbers10" className="h-16 w-auto mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-n10-text">Numbers10</h1>
+          <p className="text-n10-text-dim mt-1">Technician Dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+            <div className="bg-n10-danger/10 text-n10-danger px-4 py-3 rounded-xl text-sm border border-n10-danger/20">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-n10-text-dim mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-3 bg-n10-surface border border-n10-border rounded-xl text-n10-text placeholder-n10-text-dim/50 focus:ring-2 focus:ring-n10-primary focus:border-n10-primary outline-none transition-colors"
               placeholder="admin@numbers10.co.za"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-n10-text-dim mb-1.5">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-3 bg-n10-surface border border-n10-border rounded-xl text-n10-text placeholder-n10-text-dim/50 focus:ring-2 focus:ring-n10-primary focus:border-n10-primary outline-none transition-colors"
               placeholder="Enter password"
               required
             />
@@ -67,7 +65,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
+            className="w-full btn-gradient text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>

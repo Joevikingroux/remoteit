@@ -34,10 +34,8 @@ export default function SessionViewer() {
     }
   }, [remoteStream]);
 
-  // Reset control requested state when granted/denied
   useEffect(() => {
     if (controlGranted || !controlRequested) return;
-    // If we got a response (control-response via signaling), reset requested
   }, [controlGranted, controlRequested]);
 
   const handleEndSession = async () => {
@@ -57,25 +55,21 @@ export default function SessionViewer() {
     setControlRequested(false);
   };
 
-  // ── Mouse event handlers ──
   const getNormalizedPosition = useCallback((e: React.MouseEvent) => {
     const video = videoRef.current;
     if (!video) return null;
 
     const rect = video.getBoundingClientRect();
-    // Account for object-fit: contain — find actual video area within the element
     const videoAspect = video.videoWidth / video.videoHeight;
     const elemAspect = rect.width / rect.height;
 
     let videoX, videoY, videoW, videoH;
     if (videoAspect > elemAspect) {
-      // Video is wider — letterboxed top/bottom
       videoW = rect.width;
       videoH = rect.width / videoAspect;
       videoX = rect.left;
       videoY = rect.top + (rect.height - videoH) / 2;
     } else {
-      // Video is taller — pillarboxed left/right
       videoH = rect.height;
       videoW = rect.height * videoAspect;
       videoX = rect.left + (rect.width - videoW) / 2;
@@ -123,7 +117,6 @@ export default function SessionViewer() {
     if (controlGranted) e.preventDefault();
   }, [controlGranted]);
 
-  // ── Keyboard event handlers ──
   useEffect(() => {
     if (!controlGranted) return;
 
@@ -146,30 +139,29 @@ export default function SessionViewer() {
   }, [controlGranted, sendInput]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div className="h-screen flex flex-col bg-n10-bg">
       {/* Toolbar */}
-      <div className="bg-gray-800 text-white px-4 py-2 flex items-center justify-between">
+      <div className="bg-n10-mid border-b border-n10-border text-n10-text px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-gray-300 hover:text-white transition-colors flex items-center gap-1"
+            className="text-n10-text-dim hover:text-n10-text transition-colors flex items-center gap-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back
           </button>
-          <span className="text-gray-400">|</span>
-          <span className="font-mono text-sm text-gray-300">Session: {code}</span>
+          <span className="text-n10-border">|</span>
+          <span className="font-mono text-sm text-n10-text-dim">Session: {code}</span>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Control Button */}
           {peerConnected && (
             controlGranted ? (
               <button
                 onClick={handleReleaseControl}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2"
+                className="bg-n10-danger hover:bg-n10-danger/80 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                 Release Control
@@ -178,7 +170,7 @@ export default function SessionViewer() {
               <button
                 onClick={handleRequestControl}
                 disabled={controlRequested}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                className="bg-n10-warning hover:bg-n10-warning/80 text-n10-bg px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {controlRequested ? 'Waiting for approval...' : 'Request Control'}
               </button>
@@ -186,29 +178,28 @@ export default function SessionViewer() {
           )}
 
           {peerConnected ? (
-            <span className="flex items-center gap-2 text-green-400 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full" />
+            <span className="flex items-center gap-2 text-n10-success text-sm">
+              <span className="w-2 h-2 bg-n10-success rounded-full" />
               Client Connected
             </span>
           ) : (
-            <span className="flex items-center gap-2 text-yellow-400 text-sm">
-              <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+            <span className="flex items-center gap-2 text-n10-warning text-sm">
+              <span className="w-2 h-2 bg-n10-warning rounded-full animate-pulse" />
               Waiting for client...
             </span>
           )}
 
           <button
             onClick={handleEndSession}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+            className="bg-n10-danger hover:bg-n10-danger/80 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             End Session
           </button>
         </div>
       </div>
 
-      {/* Control mode indicator */}
       {controlGranted && (
-        <div className="bg-red-600 text-white text-center py-1 text-xs font-semibold">
+        <div className="bg-n10-danger text-white text-center py-1 text-xs font-semibold shrink-0">
           REMOTE CONTROL ACTIVE — Mouse and keyboard input is being sent to the client
         </div>
       )}
@@ -216,7 +207,7 @@ export default function SessionViewer() {
       {/* Video Area */}
       <div
         ref={videoContainerRef}
-        className={`flex-1 flex items-center justify-center relative overflow-hidden ${controlGranted ? 'cursor-none' : ''}`}
+        className={`flex-1 min-h-0 flex items-center justify-center overflow-hidden ${controlGranted ? 'cursor-none' : ''}`}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -232,12 +223,12 @@ export default function SessionViewer() {
             className="max-w-full max-h-full object-contain"
           />
         ) : (
-          <div className="text-center text-gray-400">
+          <div className="text-center text-n10-text-dim">
             {error ? (
-              <p className="text-red-400">{error}</p>
+              <p className="text-n10-danger">{error}</p>
             ) : peerConnected ? (
               <div>
-                <div className="animate-spin w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-4" />
+                <div className="animate-spin w-8 h-8 border-2 border-n10-surface border-t-n10-primary rounded-full mx-auto mb-4" />
                 <p>Establishing video connection...</p>
               </div>
             ) : (
@@ -247,7 +238,7 @@ export default function SessionViewer() {
                     d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <p>Waiting for client to share their screen...</p>
-                <p className="text-sm mt-2 text-gray-500">
+                <p className="text-sm mt-2 text-n10-text-dim/60">
                   The client needs to click "Share Screen" or use the desktop agent
                 </p>
               </div>
@@ -256,7 +247,6 @@ export default function SessionViewer() {
         )}
       </div>
 
-      {/* Status Bar */}
       <ConnectionStatus
         connected={connected}
         peerConnected={peerConnected}

@@ -8,24 +8,24 @@ interface Props {
 
 export default function ActiveSessionCard({ code, status, clientIp, duration, onClick }: Props) {
   const statusColor = status === 'connected' || status === 'view_only'
-    ? 'text-green-600 bg-green-50'
+    ? 'text-n10-success bg-n10-success/10 border-n10-success/20'
     : status === 'claimed'
-    ? 'text-blue-600 bg-blue-50'
-    : 'text-gray-600 bg-gray-50';
+    ? 'text-n10-primary bg-n10-primary/10 border-n10-primary/20'
+    : 'text-n10-text-dim bg-n10-surface border-n10-border';
 
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-xl shadow-sm p-4 text-left hover:shadow-md transition-shadow w-full"
+      className="bg-n10-mid rounded-xl border border-n10-border p-4 text-left hover:border-n10-primary/50 transition-colors w-full"
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="font-mono font-bold text-lg text-gray-900">{code}</span>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor}`}>
+        <span className="font-mono font-bold text-lg text-n10-text">{code}</span>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium border ${statusColor}`}>
           {status.toUpperCase().replace('_', ' ')}
         </span>
       </div>
-      {clientIp && <p className="text-sm text-gray-500">Client: {clientIp}</p>}
-      {duration && <p className="text-sm text-gray-500">Duration: {duration}</p>}
+      {clientIp && <p className="text-sm text-n10-text-dim">Client: {clientIp}</p>}
+      {duration && <p className="text-sm text-n10-text-dim">Duration: {duration}</p>}
     </button>
   );
 }

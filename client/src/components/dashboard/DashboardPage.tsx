@@ -19,33 +19,31 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-n10-bg flex flex-col">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto p-6">
-        {/* Session Code Entry */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Connect to Session</h2>
-          <p className="text-gray-500 mb-6">Enter the session code provided by the client to start remote support.</p>
+      <main className="flex-1 max-w-4xl w-full mx-auto p-6 flex flex-col gap-6">
+        <div className="bg-n10-mid rounded-xl border border-n10-border p-8">
+          <h2 className="text-xl font-bold text-n10-text mb-2">Connect to Session</h2>
+          <p className="text-n10-text-dim mb-6">Enter the session code provided by the client to start remote support.</p>
           {error && (
-            <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+            <div className="bg-n10-danger/10 text-n10-danger px-4 py-3 rounded-xl mb-4 text-sm border border-n10-danger/20">{error}</div>
           )}
           <CodeEntryForm onSubmit={handleConnect} />
         </div>
 
-        {/* Quick stats placeholder */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-blue-600">-</div>
-            <div className="text-sm text-gray-500 mt-1">Active Sessions</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-n10-mid rounded-xl border border-n10-border p-6 text-center">
+            <div className="text-3xl font-bold text-n10-primary">-</div>
+            <div className="text-sm text-n10-text-dim mt-1">Active Sessions</div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-green-600">-</div>
-            <div className="text-sm text-gray-500 mt-1">Today's Sessions</div>
+          <div className="bg-n10-mid rounded-xl border border-n10-border p-6 text-center">
+            <div className="text-3xl font-bold text-n10-success">-</div>
+            <div className="text-sm text-n10-text-dim mt-1">Today's Sessions</div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-purple-600">-</div>
-            <div className="text-sm text-gray-500 mt-1">Avg Duration</div>
+          <div className="bg-n10-mid rounded-xl border border-n10-border p-6 text-center">
+            <div className="text-3xl font-bold text-n10-secondary">-</div>
+            <div className="text-sm text-n10-text-dim mt-1">Avg Duration</div>
           </div>
         </div>
       </main>

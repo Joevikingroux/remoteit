@@ -35,8 +35,8 @@ export default function CountdownTimer({ expiresAt, onExpired }: Props) {
   }, [expiresAt, onExpired]);
 
   return (
-    <p className="text-sm text-gray-500">
-      Code expires in <span className="font-mono font-semibold text-gray-700">{timeLeft}</span>
+    <p className="text-sm text-n10-text-dim">
+      Code expires in <span className="font-mono font-semibold text-n10-warning">{timeLeft}</span>
     </p>
   );
 }

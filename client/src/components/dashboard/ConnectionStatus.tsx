@@ -34,15 +34,15 @@ export default function ConnectionStatus({ connected, peerConnected, connectionS
     connectionState === 'failed' ? 'Failed' : connectionState;
 
   return (
-    <div className="bg-gray-800 text-gray-400 px-4 py-2 flex items-center justify-between text-xs border-t border-gray-700">
+    <div className="bg-n10-mid text-n10-text-dim px-4 py-2 flex items-center justify-between text-xs border-t border-n10-border shrink-0">
       <div className="flex items-center gap-4">
-        <span>Session: <span className="text-gray-300 font-mono">{code}</span></span>
-        <span>Signal: {connected ? <span className="text-green-400">Connected</span> : <span className="text-red-400">Disconnected</span>}</span>
-        <span>WebRTC: <span className="text-gray-300">{connType}</span></span>
+        <span>Session: <span className="text-n10-text font-mono">{code}</span></span>
+        <span>Signal: {connected ? <span className="text-n10-success">Connected</span> : <span className="text-n10-danger">Disconnected</span>}</span>
+        <span>WebRTC: <span className="text-n10-text">{connType}</span></span>
       </div>
       <div className="flex items-center gap-4">
-        <span>Mode: {controlActive ? <span className="text-red-400">Remote Control</span> : <span className="text-blue-400">View Only</span>}</span>
-        {peerConnected && <span>Duration: <span className="text-gray-300 font-mono">{formatDuration(duration)}</span></span>}
+        <span>Mode: {controlActive ? <span className="text-n10-danger">Remote Control</span> : <span className="text-n10-primary">View Only</span>}</span>
+        {peerConnected && <span>Duration: <span className="text-n10-text font-mono">{formatDuration(duration)}</span></span>}
       </div>
     </div>
   );

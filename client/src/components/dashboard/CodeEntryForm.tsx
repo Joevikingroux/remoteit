@@ -48,8 +48,8 @@ export default function CodeEntryForm({ onSubmit }: Props) {
   const code = chars.join('');
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex gap-2" onPaste={handlePaste}>
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex gap-1.5 min-w-0" onPaste={handlePaste}>
         {chars.map((char, i) => (
           <span key={i} className="flex items-center">
             <input
@@ -58,17 +58,17 @@ export default function CodeEntryForm({ onSubmit }: Props) {
               value={char}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              className="w-12 h-14 text-center text-2xl font-mono font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none uppercase"
+              className="w-11 h-13 text-center text-xl font-mono font-bold bg-n10-surface border-2 border-n10-border rounded-lg text-n10-text focus:border-n10-primary focus:ring-2 focus:ring-n10-primary/30 outline-none uppercase transition-colors"
               maxLength={1}
             />
-            {i === 2 && <span className="mx-1 text-gray-300 text-2xl font-light">-</span>}
+            {i === 2 && <span className="mx-1 text-n10-text-dim text-xl font-light">-</span>}
           </span>
         ))}
       </div>
       <button
         onClick={() => { if (code.length === 6) onSubmit(code); }}
         disabled={code.length !== 6}
-        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-8 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-gradient text-white font-semibold py-3 px-6 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
       >
         Connect
       </button>
