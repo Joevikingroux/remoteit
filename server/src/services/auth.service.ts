@@ -20,7 +20,7 @@ interface TokenPayload {
 }
 
 export function login(email: string, password: string) {
-  const tech = db.prepare('SELECT * FROM technicians WHERE email = ? AND is_active = 1').get(email) as Technician | undefined;
+  const tech = db.prepare('SELECT * FROM technicians WHERE LOWER(email) = LOWER(?) AND is_active = 1').get(email.trim()) as Technician | undefined;
   if (!tech) throw new Error('Invalid credentials');
 
   const valid = bcrypt.compareSync(password, tech.password_hash);

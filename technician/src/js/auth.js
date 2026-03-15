@@ -13,7 +13,7 @@ const Auth = {
   async login(email, password) {
     const data = await apiFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       skipAuth: true,
     });
 
