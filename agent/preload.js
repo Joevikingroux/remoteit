@@ -13,4 +13,14 @@ contextBridge.exposeInMainWorld('agent', {
 
   onShowConsent: (callback) => ipcRenderer.on('show-consent', (_e, name) => callback(name)),
   onControlRevokedLocal: (callback) => ipcRenderer.on('control-revoked-local', () => callback()),
+
+  // Clipboard
+  clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
+  clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', text),
+
+  // File transfer (receive)
+  fileStart: (data) => ipcRenderer.send('file-start', data),
+  fileChunk: (data) => ipcRenderer.send('file-chunk', data),
+  fileEnd: (data) => ipcRenderer.send('file-end', data),
+  onFileReceived: (callback) => ipcRenderer.on('file-received', (_e, data) => callback(data)),
 });

@@ -1,5 +1,6 @@
-const { app, BrowserWindow, desktopCapturer, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, clipboard, desktopCapturer, dialog, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { init: initInput, handleInputEvent, getScreenSize } = require('./src/input');
 
 let mainWindow;
@@ -136,4 +137,47 @@ ipcMain.on('session-ended', () => {
   isControlActive = false;
   destroyControlToolbar();
   globalShortcut.unregisterAll();
+});
+
+// ── Clipboard ──
+ipcMain.handle('clipboard-read', () => {
+  return clipboard.readText();
+});
+
+ipcMain.handle('clipboard-write', (_event, text) => {
+  clipboard.writeText(text);
+  return true;
+});
+
+// ── File Transfer (receive from technician) ──
+const pendingFiles = new Map();
+
+ipcMain.on('file-start', (_event, data) => {
+  // data: { fileId, filename, size }
+  const downloadsPath = app.getPath('downloads');
+  const safeName = data.filename.replace(/[<>:"/\\|?*]/g, '_');
+  const filePath = path.join(downloadsPath, safeName);
+  const writeStream = fs.createWriteStream(filePath);
+  pendingFiles.set(data.fileId, { writeStream, filePath, received: 0, size: data.size });
+  console.log(`Receiving file: ${safeName} (${data.size} bytes)`);
+});
+
+ipcMain.on('file-chunk', (_event, data) => {
+  // data: { fileId, chunk (base64) }
+  const file = pendingFiles.get(data.fileId);
+  if (!file) return;
+  const buffer = Buffer.from(data.chunk, 'base64');
+  file.writeStream.write(buffer);
+  file.received += buffer.length;
+});
+
+ipcMain.on('file-end', (_event, data) => {
+  // data: { fileId }
+  const file = pendingFiles.get(data.fileId);
+  if (!file) return;
+  file.writeStream.end();
+  pendingFiles.delete(data.fileId);
+  console.log(`File saved: ${file.filePath}`);
+  // Notify the renderer to show confirmation
+  mainWindow?.webContents.send('file-received', { filename: path.basename(file.filePath), path: file.filePath });
 });

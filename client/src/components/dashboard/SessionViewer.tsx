@@ -6,13 +6,18 @@ import { useAuth } from '../../context/AuthContext';
 import { endSessionApi } from '../../api/sessions';
 import ConnectionStatus from './ConnectionStatus';
 
+const CHUNK_SIZE = 16384; // 16KB chunks for file transfer
+
 export default function SessionViewer() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [controlRequested, setControlRequested] = useState(false);
+  const [clipboardMsg, setClipboardMsg] = useState('');
+  const [fileTransfer, setFileTransfer] = useState<{ name: string; progress: number } | null>(null);
 
   const { socket, connected, peerConnected, iceServers, error } = useSocket({
     sessionCode: code || '',
@@ -20,7 +25,7 @@ export default function SessionViewer() {
     enabled: !!code,
   });
 
-  const { remoteStream, connectionState, sendInput, requestControl, controlGranted } = useWebRTC({
+  const { remoteStream, connectionState, sendInput, requestControl, controlGranted, dataChannel } = useWebRTC({
     socket,
     sessionCode: code || '',
     role: 'technician',
@@ -28,15 +33,36 @@ export default function SessionViewer() {
     peerConnected,
   });
 
+  // Listen for clipboard-sync from client via DataChannel
+  useEffect(() => {
+    const dc = dataChannel.current;
+    if (!dc) return;
+    const origHandler = dc.onmessage;
+    dc.onmessage = (msg) => {
+      try {
+        const data = JSON.parse(msg.data);
+        if (data.type === 'clipboard-sync') {
+          navigator.clipboard.writeText(data.text).then(() => {
+            showClipboardMsg('Clipboard received from client');
+          }).catch(() => {});
+          return;
+        }
+      } catch {}
+      // Fall through to original handler
+      if (origHandler) origHandler.call(dc, msg);
+    };
+  }, [dataChannel.current]);
+
   useEffect(() => {
     if (videoRef.current && remoteStream) {
       videoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
-  useEffect(() => {
-    if (controlGranted || !controlRequested) return;
-  }, [controlGranted, controlRequested]);
+  const showClipboardMsg = (msg: string) => {
+    setClipboardMsg(msg);
+    setTimeout(() => setClipboardMsg(''), 3000);
+  };
 
   const handleEndSession = async () => {
     if (code) {
@@ -53,6 +79,64 @@ export default function SessionViewer() {
   const handleReleaseControl = () => {
     socket.current?.emit('control-revoke', { sessionCode: code, reason: 'technician_released' });
     setControlRequested(false);
+  };
+
+  // Clipboard: send our clipboard to client
+  const handleSendClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) { showClipboardMsg('Clipboard is empty'); return; }
+      sendInput({ type: 'clipboard-sync', text });
+      showClipboardMsg('Clipboard sent to client');
+    } catch {
+      showClipboardMsg('Clipboard access denied');
+    }
+  };
+
+  // Clipboard: request client's clipboard
+  const handleGetClipboard = () => {
+    sendInput({ type: 'clipboard-request' });
+    showClipboardMsg('Requesting clipboard...');
+  };
+
+  // File transfer: send file to client
+  const handleSendFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ''; // reset input
+
+    const fileId = Math.random().toString(36).substring(2, 10);
+    const totalSize = file.size;
+
+    // Send file metadata
+    sendInput({ type: 'file-start', fileId, filename: file.name, size: totalSize });
+    setFileTransfer({ name: file.name, progress: 0 });
+
+    // Read and send chunks
+    const reader = file.stream().getReader();
+    let sent = 0;
+
+    const sendChunks = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Split into CHUNK_SIZE pieces and base64 encode
+        for (let i = 0; i < value.length; i += CHUNK_SIZE) {
+          const chunk = value.slice(i, i + CHUNK_SIZE);
+          const base64 = btoa(String.fromCharCode(...chunk));
+          sendInput({ type: 'file-chunk', fileId, chunk: base64 });
+          sent += chunk.length;
+          setFileTransfer({ name: file.name, progress: Math.round((sent / totalSize) * 100) });
+          // Small delay to avoid overwhelming the DataChannel
+          await new Promise(r => setTimeout(r, 5));
+        }
+      }
+      sendInput({ type: 'file-end', fileId });
+      setFileTransfer(null);
+    };
+
+    sendChunks().catch(() => setFileTransfer(null));
   };
 
   const getNormalizedPosition = useCallback((e: React.MouseEvent) => {
@@ -156,7 +240,54 @@ export default function SessionViewer() {
           <span className="font-mono text-sm text-n10-text-dim">Session: {code}</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Clipboard buttons */}
+          {peerConnected && (
+            <>
+              <button
+                onClick={handleSendClipboard}
+                title="Send your clipboard to client"
+                className="bg-n10-surface hover:bg-n10-border text-n10-text-dim hover:text-n10-text px-3 py-1.5 rounded-lg text-sm transition-colors border border-n10-border flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                Paste to Client
+              </button>
+              <button
+                onClick={handleGetClipboard}
+                title="Get clipboard from client"
+                className="bg-n10-surface hover:bg-n10-border text-n10-text-dim hover:text-n10-text px-3 py-1.5 rounded-lg text-sm transition-colors border border-n10-border flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Copy from Client
+              </button>
+
+              {/* File transfer */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleSendFile}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!!fileTransfer}
+                title="Send file to client"
+                className="bg-n10-surface hover:bg-n10-border text-n10-text-dim hover:text-n10-text px-3 py-1.5 rounded-lg text-sm transition-colors border border-n10-border flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Send File
+              </button>
+
+              <span className="text-n10-border">|</span>
+            </>
+          )}
+
           {peerConnected && (
             controlGranted ? (
               <button
@@ -197,6 +328,22 @@ export default function SessionViewer() {
           </button>
         </div>
       </div>
+
+      {/* Clipboard/file status bar */}
+      {(clipboardMsg || fileTransfer) && (
+        <div className="bg-n10-surface text-center py-1 text-xs font-medium shrink-0 flex items-center justify-center gap-4">
+          {clipboardMsg && <span className="text-n10-primary">{clipboardMsg}</span>}
+          {fileTransfer && (
+            <span className="text-n10-secondary flex items-center gap-2">
+              Sending {fileTransfer.name}...
+              <span className="inline-block w-24 h-1.5 bg-n10-border rounded-full overflow-hidden">
+                <span className="block h-full bg-n10-primary rounded-full transition-all" style={{ width: `${fileTransfer.progress}%` }} />
+              </span>
+              {fileTransfer.progress}%
+            </span>
+          )}
+        </div>
+      )}
 
       {controlGranted && (
         <div className="bg-n10-danger text-white text-center py-1 text-xs font-semibold shrink-0">

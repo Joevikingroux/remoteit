@@ -130,7 +130,7 @@ async function setupWebRTC() {
   // Receive data channel for input events from technician
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
-    dataChannel.onmessage = (msg) => {
+    dataChannel.onmessage = async (msg) => {
       try {
         const inputEvent = JSON.parse(msg.data);
 
@@ -141,6 +141,36 @@ async function setupWebRTC() {
         }
 
         if (inputEvent.type === 'control-response' || inputEvent.type === 'control-revoke') {
+          return;
+        }
+
+        // Clipboard sync: technician sends their clipboard text
+        if (inputEvent.type === 'clipboard-sync') {
+          await window.agent.clipboardWrite(inputEvent.text);
+          console.log('Clipboard updated from technician');
+          return;
+        }
+
+        // Clipboard request: technician wants our clipboard
+        if (inputEvent.type === 'clipboard-request') {
+          const text = await window.agent.clipboardRead();
+          if (dataChannel && dataChannel.readyState === 'open') {
+            dataChannel.send(JSON.stringify({ type: 'clipboard-sync', text }));
+          }
+          return;
+        }
+
+        // File transfer: receive file from technician
+        if (inputEvent.type === 'file-start') {
+          window.agent.fileStart({ fileId: inputEvent.fileId, filename: inputEvent.filename, size: inputEvent.size });
+          return;
+        }
+        if (inputEvent.type === 'file-chunk') {
+          window.agent.fileChunk({ fileId: inputEvent.fileId, chunk: inputEvent.chunk });
+          return;
+        }
+        if (inputEvent.type === 'file-end') {
+          window.agent.fileEnd({ fileId: inputEvent.fileId });
           return;
         }
 
