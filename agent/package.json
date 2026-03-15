@@ -1,7 +1,11 @@
 {
   "name": "remoteit-agent",
   "version": "1.0.0",
-  "description": "RemoteIT Desktop Support Agent",
+  "description": "RemoteIT Desktop Support Agent - Numbers10 IT Support",
+  "author": {
+    "name": "Numbers10 IT",
+    "email": "joe@numbers10.co.za"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -19,6 +23,7 @@
   "build": {
     "appId": "com.numbers10.remoteit-agent",
     "productName": "RemoteIT Support",
+    "copyright": "Copyright © 2026 Numbers10 IT",
     "files": [
       "main.js",
       "preload.js",
@@ -33,7 +38,9 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "renderer/icon.ico"
+      "icon": "renderer/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false
     },
     "portable": {
       "artifactName": "RemoteIT-Support.${ext}"
