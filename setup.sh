@@ -24,6 +24,8 @@ fi
 
 apt install -y nginx certbot python3-certbot-nginx -qq
 
+npm install -g tsx pm2 2>&1 | tail -1
+
 echo "  Node: $(node -v) | npm: $(npm -v)"
 echo "  nginx: $(nginx -v 2>&1 | cut -d'/' -f2)"
 
@@ -31,7 +33,7 @@ echo "  nginx: $(nginx -v 2>&1 | cut -d'/' -f2)"
 echo ""
 echo "[2/8] Installing npm packages..."
 cd "$APP_DIR"
-npm install --omit=dev 2>&1 | tail -1
+npm install 2>&1 | tail -1
 
 # ── 3. Generate .env if missing ──
 echo ""
