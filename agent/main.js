@@ -11,12 +11,14 @@ let isControlActive = false;
 const SERVER_URL = 'https://remoteit.numbers10.co.za';
 
 function createMainWindow() {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
     width: 450,
-    height: 550,
+    height: 520,
+    x: Math.round((screenW - 450) / 2),
+    y: Math.round((screenH - 520) / 2),
     resizable: false,
     maximizable: false,
-    icon: path.join(__dirname, 'renderer', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

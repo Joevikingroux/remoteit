@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RemoteIT Support</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -19,17 +20,17 @@
 
     <!-- Connect Screen -->
     <div id="connect-screen" class="screen active">
-      <p class="info-text">Enter the session code provided by your technician, or create a new session.</p>
+      <p class="info-text">Click <strong>Start Support Session</strong> to generate a code and share your screen with your technician.</p>
+
+      <button id="create-btn" class="btn btn-primary btn-large">Start Support Session</button>
+
+      <div class="divider"><span>or enter a code from your technician</span></div>
 
       <div class="code-input-group">
-        <input type="text" id="code-input" maxlength="6" placeholder="Enter code"
+        <input type="text" id="code-input" maxlength="6" placeholder="ABC123"
                spellcheck="false" autocomplete="off">
-        <button id="connect-btn" class="btn btn-primary">Connect</button>
+        <button id="connect-btn" class="btn btn-secondary">Connect</button>
       </div>
-
-      <div class="divider"><span>or</span></div>
-
-      <button id="create-btn" class="btn btn-secondary">Create New Session</button>
 
       <div id="connect-error" class="error hidden"></div>
     </div>
@@ -37,13 +38,15 @@
     <!-- Session Active Screen -->
     <div id="session-screen" class="screen">
       <div class="session-code-display">
-        <span class="label">Session Code</span>
+        <span class="label">Your Session Code</span>
         <span id="session-code" class="code"></span>
       </div>
 
+      <p class="share-hint">Give this code to your technician so they can connect</p>
+
       <div id="status-indicator" class="status">
         <span class="dot"></span>
-        <span id="status-text">Waiting for technician...</span>
+        <span id="status-text">Waiting for technician to connect...</span>
       </div>
 
       <div id="control-status" class="control-status hidden">

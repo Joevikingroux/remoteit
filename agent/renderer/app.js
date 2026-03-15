@@ -1,4 +1,4 @@
-const { io } = require('socket.io-client');
+// socket.io is loaded globally via CDN script tag (window.io)
 
 let socket = null;
 let peerConnection = null;
@@ -32,7 +32,6 @@ async function startCapture() {
     const sources = await window.agent.getSources();
     if (sources.length === 0) throw new Error('No screen sources found');
 
-    // Use the primary screen
     const sourceId = sources[0].id;
 
     localStream = await navigator.mediaDevices.getUserMedia({
@@ -66,9 +65,8 @@ async function connectToServer(code) {
     socket.emit('join', { role: 'client', sessionCode: code });
   });
 
-  socket.on('joined', async (data) => {
+  socket.on('joined', (data) => {
     console.log('Joined session, ICE servers:', data.iceServers);
-    // Store ICE servers for later use
     socket._iceServers = data.iceServers || [];
   });
 
@@ -76,8 +74,6 @@ async function connectToServer(code) {
     console.log('Technician connected');
     statusIndicator.classList.add('connected');
     statusText.textContent = 'Technician connected — viewing your screen';
-
-    // Start WebRTC
     await setupWebRTC();
   });
 
@@ -100,10 +96,8 @@ async function connectToServer(code) {
   });
 
   socket.on('control-request', (data) => {
-    // Show consent dialog
     consentTechName.textContent = data.technicianName || 'Technician';
     consentOverlay.classList.remove('hidden');
-    window.agent.onShowConsent && null; // Trigger main process awareness
   });
 
   socket.on('error', (data) => {
@@ -125,7 +119,6 @@ async function setupWebRTC() {
 
   peerConnection = new RTCPeerConnection(config);
 
-  // Add screen capture tracks
   if (!localStream) {
     await startCapture();
   }
@@ -134,7 +127,7 @@ async function setupWebRTC() {
     peerConnection.addTrack(track, localStream);
   });
 
-  // Create data channel for receiving input events
+  // Receive data channel for input events from technician
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
     dataChannel.onmessage = (msg) => {
@@ -147,6 +140,10 @@ async function setupWebRTC() {
           return;
         }
 
+        if (inputEvent.type === 'control-response' || inputEvent.type === 'control-revoke') {
+          return;
+        }
+
         if (controlActive) {
           window.agent.sendInputEvent(inputEvent);
         }
@@ -156,7 +153,6 @@ async function setupWebRTC() {
     };
   };
 
-  // ICE candidates
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
       socket.emit('ice-candidate', { candidate: event.candidate, sessionCode });
@@ -167,7 +163,6 @@ async function setupWebRTC() {
     console.log('ICE state:', peerConnection.iceConnectionState);
   };
 
-  // Create and send offer
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
   socket.emit('sdp-offer', { sdp: peerConnection.localDescription, sessionCode });
@@ -181,11 +176,9 @@ function grantControl() {
   revokeBtn.classList.remove('hidden');
   window.agent.controlGranted();
 
-  // Notify technician via data channel
   if (dataChannel && dataChannel.readyState === 'open') {
     dataChannel.send(JSON.stringify({ type: 'control-response', granted: true }));
   }
-  // Also via signaling
   socket?.emit('control-response', { sessionCode, granted: true });
 }
 
@@ -200,6 +193,7 @@ function denyControl() {
 }
 
 function revokeControl() {
+  if (!controlActive) return;
   controlActive = false;
   controlStatus.classList.add('hidden');
   revokeBtn.classList.add('hidden');
@@ -228,13 +222,12 @@ function endSession() {
     socket = null;
   }
 
-  // Go back to connect screen
   sessionScreen.classList.remove('active');
   connectScreen.classList.add('active');
   controlStatus.classList.add('hidden');
   revokeBtn.classList.add('hidden');
   statusIndicator.classList.remove('connected');
-  statusText.textContent = 'Waiting for technician...';
+  statusText.textContent = 'Waiting for technician to connect...';
 }
 
 // ── UI Helpers ──
@@ -253,6 +246,36 @@ function showSession(code) {
 }
 
 // ── Event Listeners ──
+
+// Main button: Create session + start capture
+createBtn.addEventListener('click', async () => {
+  createBtn.disabled = true;
+  createBtn.textContent = 'Starting...';
+
+  try {
+    // First capture screen (needs user gesture in Electron)
+    await startCapture();
+
+    // Then create session on server
+    const serverUrl = await window.agent.getServerUrl();
+    const res = await fetch(`${serverUrl}/api/sessions/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create session');
+
+    showSession(data.code);
+    await connectToServer(data.code);
+  } catch (err) {
+    showError(err.message || 'Failed to start session');
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = 'Start Support Session';
+  }
+});
+
+// Secondary: Enter existing code
 connectBtn.addEventListener('click', async () => {
   const code = codeInput.value.toUpperCase().replace(/[^A-Z2-9]/g, '');
   if (code.length !== 6) {
@@ -275,33 +298,12 @@ connectBtn.addEventListener('click', async () => {
   }
 });
 
-createBtn.addEventListener('click', async () => {
-  createBtn.disabled = true;
-  createBtn.textContent = 'Creating...';
-
-  try {
-    const serverUrl = await window.agent.getServerUrl();
-    const res = await fetch(`${serverUrl}/api/sessions/create`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-
-    await startCapture();
-    showSession(data.code);
-    await connectToServer(data.code);
-  } catch (err) {
-    showError(err.message || 'Failed to create session');
-  } finally {
-    createBtn.disabled = false;
-    createBtn.textContent = 'Create New Session';
-  }
-});
-
 consentAllow.addEventListener('click', grantControl);
 consentDeny.addEventListener('click', denyControl);
 revokeBtn.addEventListener('click', revokeControl);
 endBtn.addEventListener('click', endSession);
 
-// Handle Ctrl+Shift+F12 from main process
+// Handle Ctrl+Shift+F12 revoke from main process
 window.agent.onControlRevokedLocal(() => {
   revokeControl();
 });
