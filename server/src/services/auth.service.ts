@@ -21,10 +21,17 @@ interface TokenPayload {
 
 export function login(email: string, password: string) {
   const tech = db.prepare('SELECT * FROM technicians WHERE LOWER(email) = LOWER(?) AND is_active = 1').get(email.trim()) as Technician | undefined;
-  if (!tech) throw new Error('Invalid credentials');
+  if (!tech) {
+    console.log('[AUTH] No technician found for email:', email.trim());
+    throw new Error('Invalid credentials');
+  }
 
+  console.log('[AUTH] Found technician:', tech.email, '- checking password...');
   const valid = bcrypt.compareSync(password, tech.password_hash);
-  if (!valid) throw new Error('Invalid credentials');
+  if (!valid) {
+    console.log('[AUTH] Password mismatch for:', tech.email);
+    throw new Error('Invalid credentials');
+  }
 
   const payload: TokenPayload = { id: tech.id, email: tech.email, name: tech.name, role: tech.role };
   const token = jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtExpiry });

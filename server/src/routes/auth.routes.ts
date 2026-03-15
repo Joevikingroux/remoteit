@@ -10,13 +10,17 @@ const router = Router();
 router.post('/login', loginLimiter, (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    console.log('[AUTH] Login attempt:', { email, passwordLength: password?.length, bodyKeys: Object.keys(req.body), origin: req.headers.origin });
     if (!email || !password) {
+      console.log('[AUTH] Missing email or password');
       res.status(400).json({ error: 'Email and password required' });
       return;
     }
     const result = login(email, password);
+    console.log('[AUTH] Login success for:', email);
     res.json(result);
   } catch (err: any) {
+    console.log('[AUTH] Login failed for:', req.body.email, '- reason:', err.message);
     res.status(401).json({ error: err.message });
   }
 });
