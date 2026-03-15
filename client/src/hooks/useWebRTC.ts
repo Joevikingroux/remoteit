@@ -20,16 +20,45 @@ export function useWebRTC({
 }: UseWebRTCOptions) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>(iceServers);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<string>('new');
   const [controlGranted, setControlGranted] = useState(false);
+
+  // Keep iceServers ref up to date without triggering effect re-run
+  useEffect(() => {
+    iceServersRef.current = iceServers;
+  }, [iceServers]);
+
+  // Listen for control events on socket separately so they survive WebRTC reconnects
+  useEffect(() => {
+    const sock = socket.current;
+    if (!sock) return;
+
+    const handleControlResponse = (data: { granted: boolean }) => {
+      setControlGranted(data.granted);
+    };
+
+    const handleControlRevoke = () => {
+      setControlGranted(false);
+    };
+
+    sock.on('control-response', handleControlResponse);
+    sock.on('control-revoke', handleControlRevoke);
+
+    return () => {
+      sock.off('control-response', handleControlResponse);
+      sock.off('control-revoke', handleControlRevoke);
+    };
+  }, [socket.current]);
 
   useEffect(() => {
     const sock = socket.current;
     if (!sock || !peerConnected) return;
 
+    const servers = iceServersRef.current;
     const pc = new RTCPeerConnection({
-      iceServers: iceServers.length > 0 ? iceServers : [{ urls: 'stun:stun.l.google.com:19302' }],
+      iceServers: servers.length > 0 ? servers : [{ urls: 'stun:stun.l.google.com:19302' }],
     });
     pcRef.current = pc;
 
@@ -106,32 +135,19 @@ export function useWebRTC({
       }
     };
 
-    // Control flow via signaling (fallback)
-    const handleControlResponse = (data: { granted: boolean }) => {
-      setControlGranted(data.granted);
-    };
-
-    const handleControlRevoke = () => {
-      setControlGranted(false);
-    };
-
     sock.on('sdp-offer', handleOffer);
     sock.on('sdp-answer', handleAnswer);
     sock.on('ice-candidate', handleIceCandidate);
-    sock.on('control-response', handleControlResponse);
-    sock.on('control-revoke', handleControlRevoke);
 
     return () => {
       sock.off('sdp-offer', handleOffer);
       sock.off('sdp-answer', handleAnswer);
       sock.off('ice-candidate', handleIceCandidate);
-      sock.off('control-response', handleControlResponse);
-      sock.off('control-revoke', handleControlRevoke);
       pc.close();
       pcRef.current = null;
       dataChannelRef.current = null;
     };
-  }, [peerConnected, localStream, iceServers, role, sessionCode, socket]);
+  }, [peerConnected, localStream, role, sessionCode]);
 
   const sendInput = useCallback((event: Record<string, unknown>) => {
     const dc = dataChannelRef.current;

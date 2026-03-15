@@ -47,7 +47,7 @@ export function registerHandlers(io: Server, socket: Socket) {
     if (sigSession.clientSocketId && sigSession.techSocketId) {
       sigSession.status = 'active';
       setSignalingSession(code, sigSession);
-      updateSessionStatus(code, 'connected');
+      updateSessionStatus(code, 'view_only');
 
       io.to(code).emit('peer-joined', { role });
       logAudit({ sessionId: dbSession.id, actor: 'system', action: 'peers_connected' });
@@ -120,11 +120,19 @@ export function registerHandlers(io: Server, socket: Socket) {
   socket.on('control-revoke', (data: { sessionCode: string; reason?: string }) => {
     const code = data.sessionCode.toUpperCase();
     const sigSession = getSignalingSession(code);
-    if (!sigSession || !sigSession.techSocketId) return;
+    if (!sigSession) return;
 
-    io.to(sigSession.techSocketId).emit('control-revoke', { reason: data.reason || 'client_initiated' });
+    // Send to the OTHER peer (whoever didn't send the revoke)
+    const targetId = sigSession.clientSocketId === socket.id
+      ? sigSession.techSocketId
+      : sigSession.clientSocketId;
+    const actor = sigSession.clientSocketId === socket.id ? 'client' : 'technician';
+
+    if (targetId) {
+      io.to(targetId).emit('control-revoke', { reason: data.reason || 'client_initiated' });
+    }
     updateSessionStatus(code, 'view_only');
-    logAudit({ sessionId: sigSession.sessionId, actor: 'client', action: 'control_revoked' });
+    logAudit({ sessionId: sigSession.sessionId, actor, action: 'control_revoked' });
   });
 
   socket.on('disconnect', () => {
