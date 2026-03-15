@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>RemoteIT Control</title>
+  <title>Numbers10 Remote Control</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -11,7 +11,7 @@
       -webkit-app-region: drag;
     }
     .toolbar {
-      background: rgba(255, 82, 82, 0.95);
+      background: rgba(26, 26, 46, 0.95);
       color: white;
       border-radius: 0 0 12px 12px;
       padding: 8px 16px;
@@ -22,17 +22,22 @@
       font-size: 13px;
       font-weight: 600;
       backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 191, 255, 0.3);
+      border-top: none;
     }
     .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: white;
+      background: #FF5252;
       animation: pulse 1s infinite;
+    }
+    .label {
+      color: #FF5252;
     }
     .btn {
       -webkit-app-region: no-drag;
-      background: rgba(255,255,255,0.2);
+      background: #FF5252;
       border: none;
       color: white;
       padding: 4px 12px;
@@ -41,7 +46,7 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .btn:hover { background: rgba(255,255,255,0.3); }
+    .btn:hover { background: #e04848; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   </style>
 </head>

@@ -31,7 +31,7 @@ export default function SupportPage() {
     <div className="min-h-screen bg-n10-bg flex flex-col">
       <header className="bg-n10-mid border-b border-n10-border">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
-          <img src="/logo.png" alt="Numbers10" className="h-10 w-auto" />
+          <img src="/logo.jpg" alt="Numbers10" className="h-10 w-auto" />
           <div>
             <h1 className="text-xl font-bold text-n10-text">Numbers10</h1>
             <p className="text-sm text-n10-text-dim">Technology Solutions</p>
@@ -107,7 +107,7 @@ export default function SupportPage() {
                 </div>
 
                 <a
-                  href="/downloads/RemoteIT-Support.exe"
+                  href="/downloads/Numbers10-Support.exe"
                   className="w-full bg-n10-surface hover:bg-n10-border text-n10-text font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 border border-n10-border"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

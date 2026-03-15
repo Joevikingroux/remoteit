@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-n10-bg flex items-center justify-center p-6">
       <div className="bg-n10-mid rounded-2xl border border-n10-border max-w-md w-full p-8">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Numbers10" className="h-16 w-auto mx-auto mb-4" />
+          <img src="/logo.jpg" alt="Numbers10" className="h-16 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-n10-text">Numbers10</h1>
           <p className="text-n10-text-dim mt-1">Technician Dashboard</p>
         </div>
