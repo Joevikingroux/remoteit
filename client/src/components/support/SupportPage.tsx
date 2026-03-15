@@ -94,13 +94,38 @@ export default function SupportPage() {
               <CountdownTimer expiresAt={session.expiresAt} onExpired={() => setExpired(true)} />
               <StatusIndicator connected={peerConnected} sharing={sharing} />
 
-              <div className="mt-6 border-t pt-6">
+              <div className="mt-6 border-t pt-6 space-y-4">
+                <p className="text-sm font-medium text-gray-700">Choose how to connect:</p>
+
+                {/* Option A: Browser screen share (view only) */}
                 <ScreenShareButton
                   sessionCode={session.code}
                   onPeerConnected={() => setPeerConnected(true)}
                   onPeerDisconnected={() => setPeerConnected(false)}
                   onSharingChange={setSharing}
                 />
+
+                <div className="flex items-center gap-3 text-gray-400 text-xs">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span>or for full remote control</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Option B: Download desktop agent */}
+                <a
+                  href="/downloads/RemoteIT-Support.exe"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Support App (Windows)
+                </a>
+                <p className="text-xs text-gray-400">
+                  Portable app — no installation needed. Enables full remote control.
+                  <br />Your session code: <span className="font-mono font-semibold">{session.code}</span> — enter it in the app after launching.
+                </p>
               </div>
             </>
           )}

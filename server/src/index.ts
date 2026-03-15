@@ -28,6 +28,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/stats', statsRoutes);
 
+// Agent downloads
+const downloadsDir = path.resolve(__dirname, '../../downloads');
+app.use('/downloads', express.static(downloadsDir));
+
 // Serve client build in production
 const clientDist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
