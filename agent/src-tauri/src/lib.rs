@@ -262,7 +262,6 @@ fn create_toolbar(app: tauri::AppHandle) -> Result<(), String> {
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
-    .transparent(true)
     .build()
     .map_err(|e| e.to_string())?;
 
