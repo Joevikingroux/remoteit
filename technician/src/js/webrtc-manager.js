@@ -30,25 +30,26 @@ const WebRTCManager = {
       if (this.onRemoteStream) this.onRemoteStream(this.remoteStream);
     };
 
-    // Create DataChannel for input events
-    const dc = pc.createDataChannel('input', { ordered: true });
-    this.dataChannel = dc;
-
-    dc.onopen = () => console.log('DataChannel open');
-    dc.onclose = () => console.log('DataChannel closed');
-    dc.onmessage = (msg) => {
-      try {
-        const data = JSON.parse(msg.data);
-        if (data.type === 'control-response') {
-          this.controlGranted = data.granted;
-          if (this.onControlChanged) this.onControlChanged(data.granted);
-        } else if (data.type === 'control-revoke') {
-          this.controlGranted = false;
-          if (this.onControlChanged) this.onControlChanged(false);
-        } else if (data.type === 'clipboard-sync') {
-          ClipboardSync.onReceived(data.text);
-        }
-      } catch {}
+    // Receive DataChannel from agent (agent is the offerer, so it creates the DC)
+    pc.ondatachannel = (event) => {
+      console.log('Technician received DataChannel from agent');
+      this.dataChannel = event.channel;
+      this.dataChannel.onopen = () => console.log('DataChannel open');
+      this.dataChannel.onclose = () => console.log('DataChannel closed');
+      this.dataChannel.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+          if (data.type === 'control-response') {
+            this.controlGranted = data.granted;
+            if (this.onControlChanged) this.onControlChanged(data.granted);
+          } else if (data.type === 'control-revoke') {
+            this.controlGranted = false;
+            if (this.onControlChanged) this.onControlChanged(false);
+          } else if (data.type === 'clipboard-sync') {
+            ClipboardSync.onReceived(data.text);
+          }
+        } catch {}
+      };
     };
 
     // Socket signaling handlers

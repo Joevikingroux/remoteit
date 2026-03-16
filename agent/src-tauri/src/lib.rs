@@ -11,9 +11,11 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    keybd_event, mouse_event, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MOUSEEVENTF_HWHEEL,
+    keybd_event, mouse_event, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MOUSEEVENTF_HWHEEL,
     MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
     MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
+    VIRTUAL_KEY, KEYBD_EVENT_FLAGS,
 };
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN};
@@ -197,15 +199,32 @@ fn handle_input_event(event: InputEvent, state: tauri::State<'_, AppState>) -> R
 fn send_sas() {
     #[cfg(target_os = "windows")]
     unsafe {
-        let flags_none = windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(0);
-        // Press Ctrl+Shift+Esc
-        keybd_event(0x11, 0, flags_none, 0); // Ctrl down
-        keybd_event(0x10, 0, flags_none, 0); // Shift down
-        keybd_event(0x1B, 0, flags_none, 0); // Esc down
-        // Release
-        keybd_event(0x1B, 0, KEYEVENTF_KEYUP, 0); // Esc up
-        keybd_event(0x10, 0, KEYEVENTF_KEYUP, 0); // Shift up
-        keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0); // Ctrl up
+        // Use SendInput (modern API) to send Ctrl+Shift+Esc → opens Task Manager
+        let make_key = |vk: u16, flags: KEYBD_EVENT_FLAGS| -> INPUT {
+            INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VIRTUAL_KEY(vk),
+                        wScan: 0,
+                        dwFlags: flags,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    },
+                },
+            }
+        };
+
+        let inputs = [
+            make_key(0x11, KEYBD_EVENT_FLAGS(0)),    // Ctrl down
+            make_key(0x10, KEYBD_EVENT_FLAGS(0)),    // Shift down
+            make_key(0x1B, KEYBD_EVENT_FLAGS(0)),    // Esc down
+            make_key(0x1B, KEYEVENTF_KEYUP),         // Esc up
+            make_key(0x10, KEYEVENTF_KEYUP),         // Shift up
+            make_key(0x11, KEYEVENTF_KEYUP),         // Ctrl up
+        ];
+
+        SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
     }
 }
 
@@ -300,7 +319,7 @@ fn capture_screen_gdi() -> Result<Vec<u8>, String> {
         let img = image::RgbImage::from_raw(w as u32, h as u32, rgb)
             .ok_or("RgbImage::from_raw failed")?;
         let mut jpeg_buf = Vec::new();
-        let encoder = JpegEncoder::new_with_quality(&mut jpeg_buf, 50);
+        let encoder = JpegEncoder::new_with_quality(&mut jpeg_buf, 80);
         img.write_with_encoder(encoder).map_err(|e| format!("JPEG encode: {}", e))?;
 
         Ok(jpeg_buf)

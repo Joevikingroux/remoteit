@@ -186,10 +186,35 @@ async function setupWebRTC() {
     peerConnection.addTrack(track, localStream);
   });
 
-  // Receive data channel for input events from technician
+  // Create data channel (agent is the offerer, so it MUST create the DC)
+  dataChannel = peerConnection.createDataChannel('input', { ordered: true });
+  setupDataChannelHandlers(dataChannel);
+
+  // Also accept data channels from the other side (fallback)
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
-    dataChannel.onmessage = async (msg) => {
+    setupDataChannelHandlers(dataChannel);
+  };
+
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('ice-candidate', { candidate: event.candidate, sessionCode });
+    }
+  };
+
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log('ICE state:', peerConnection.iceConnectionState);
+  };
+
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  socket.emit('sdp-offer', { sdp: peerConnection.localDescription, sessionCode });
+}
+
+function setupDataChannelHandlers(dc) {
+  dc.onopen = () => console.log('Agent DataChannel open');
+  dc.onclose = () => console.log('Agent DataChannel closed');
+  dc.onmessage = async (msg) => {
       try {
         const inputEvent = JSON.parse(msg.data);
 
@@ -254,23 +279,8 @@ async function setupWebRTC() {
       }
     };
 
-    // Start clipboard auto-sync when DataChannel is ready
-    startClipboardPolling();
-  };
-
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate) {
-      socket.emit('ice-candidate', { candidate: event.candidate, sessionCode });
-    }
-  };
-
-  peerConnection.oniceconnectionstatechange = () => {
-    console.log('ICE state:', peerConnection.iceConnectionState);
-  };
-
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  socket.emit('sdp-offer', { sdp: peerConnection.localDescription, sessionCode });
+  // Start clipboard auto-sync when DataChannel is ready
+  startClipboardPolling();
 }
 
 // ── Control Flow ──
