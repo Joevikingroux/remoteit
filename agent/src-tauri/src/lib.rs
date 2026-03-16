@@ -210,8 +210,97 @@ fn send_sas() {
     }
 }
 
-// ── Native Screen Capture ──
-// Captures the primary monitor using xcap (no browser picker needed)
+// ── Native Screen Capture (Win32 GDI BitBlt) ──
+// Captures the entire primary screen without any browser picker
+
+#[cfg(target_os = "windows")]
+fn capture_screen_frame() -> Option<Vec<u8>> {
+    use windows::Win32::Graphics::Gdi::{
+        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
+        GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
+        DIB_RGB_COLORS, SRCCOPY,
+    };
+
+    unsafe {
+        let w = GetSystemMetrics(SM_CXSCREEN);
+        let h = GetSystemMetrics(SM_CYSCREEN);
+        if w <= 0 || h <= 0 {
+            return None;
+        }
+
+        // Get screen DC
+        let hdc_screen = GetDC(windows::Win32::Foundation::HWND::default());
+        if hdc_screen.is_invalid() {
+            return None;
+        }
+
+        // Create memory DC and bitmap
+        let hdc_mem = CreateCompatibleDC(hdc_screen);
+        if hdc_mem.is_invalid() {
+            ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
+            return None;
+        }
+        let hbm = CreateCompatibleBitmap(hdc_screen, w, h);
+        if hbm.is_invalid() {
+            let _ = DeleteDC(hdc_mem);
+            ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
+            return None;
+        }
+        let old_obj = SelectObject(hdc_mem, hbm);
+
+        // Copy screen to memory bitmap
+        let _ = BitBlt(hdc_mem, 0, 0, w, h, hdc_screen, 0, 0, SRCCOPY);
+
+        // Read pixel data
+        let bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: w,
+                biHeight: -h, // negative = top-down row order
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: 0, // BI_RGB
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let buf_size = (w * h * 4) as usize;
+        let mut bgra = vec![0u8; buf_size];
+        GetDIBits(
+            hdc_mem,
+            hbm,
+            0,
+            h as u32,
+            Some(bgra.as_mut_ptr() as *mut _),
+            &mut { bmi } as *mut BITMAPINFO,
+            DIB_RGB_COLORS,
+        );
+
+        // Cleanup GDI
+        SelectObject(hdc_mem, old_obj);
+        let _ = DeleteObject(hbm);
+        let _ = DeleteDC(hdc_mem);
+        ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
+
+        // Convert BGRA → RGB
+        let pixel_count = (w * h) as usize;
+        let mut rgb = Vec::with_capacity(pixel_count * 3);
+        for pixel in bgra.chunks_exact(4) {
+            rgb.push(pixel[2]); // R
+            rgb.push(pixel[1]); // G
+            rgb.push(pixel[0]); // B
+        }
+
+        // Encode JPEG
+        use image::codecs::jpeg::JpegEncoder;
+        let img = image::RgbImage::from_raw(w as u32, h as u32, rgb)?;
+        let mut jpeg_buf = Vec::new();
+        let encoder = JpegEncoder::new_with_quality(&mut jpeg_buf, 50);
+        img.write_with_encoder(encoder).ok()?;
+
+        Some(jpeg_buf)
+    }
+}
 
 #[tauri::command]
 fn start_screen_capture(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
@@ -222,22 +311,11 @@ fn start_screen_capture(state: tauri::State<'_, AppState>, app: tauri::AppHandle
     capturing.store(true, Ordering::SeqCst);
 
     std::thread::spawn(move || {
-        let monitors = xcap::Monitor::all().unwrap_or_default();
-        let monitor = match monitors.into_iter().find(|m| m.is_primary()) {
-            Some(m) => m,
-            None => {
-                eprintln!("No primary monitor found");
-                return;
-            }
-        };
-
         while capturing.load(Ordering::SeqCst) {
-            if let Ok(img) = monitor.capture_image() {
-                let mut buf = std::io::Cursor::new(Vec::new());
-                if img.write_to(&mut buf, xcap::image::ImageFormat::Jpeg).is_ok() {
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(buf.into_inner());
-                    let _ = app.emit("screen-frame", b64);
-                }
+            #[cfg(target_os = "windows")]
+            if let Some(jpeg) = capture_screen_frame() {
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&jpeg);
+                let _ = app.emit("screen-frame", b64);
             }
             std::thread::sleep(std::time::Duration::from_millis(66)); // ~15fps
         }

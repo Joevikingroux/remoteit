@@ -23,13 +23,14 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 base64 = "0.22"
 dirs = "5"
-xcap = "0.0"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 [dependencies.windows]
 version = "0.58"
 features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Gdi",
 ]
 
 [profile.release]
