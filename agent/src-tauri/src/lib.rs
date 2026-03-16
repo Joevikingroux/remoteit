@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
@@ -211,48 +210,47 @@ fn send_sas() {
 }
 
 // ── Native Screen Capture (Win32 GDI BitBlt) ──
-// Captures the entire primary screen without any browser picker
+// Captures the entire primary screen without any browser picker.
+// Called per-frame from JS via invoke('capture_frame').
 
 #[cfg(target_os = "windows")]
-fn capture_screen_frame() -> Option<Vec<u8>> {
+fn capture_screen_gdi() -> Result<Vec<u8>, String> {
     use windows::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
         GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
         DIB_RGB_COLORS, SRCCOPY,
     };
+    use windows::Win32::Foundation::HWND;
 
     unsafe {
         let w = GetSystemMetrics(SM_CXSCREEN);
         let h = GetSystemMetrics(SM_CYSCREEN);
         if w <= 0 || h <= 0 {
-            return None;
+            return Err(format!("Invalid screen size: {}x{}", w, h));
         }
 
-        // Get screen DC
-        let hdc_screen = GetDC(windows::Win32::Foundation::HWND::default());
+        let hdc_screen = GetDC(HWND::default());
         if hdc_screen.is_invalid() {
-            return None;
+            return Err("GetDC failed".into());
         }
 
-        // Create memory DC and bitmap
         let hdc_mem = CreateCompatibleDC(hdc_screen);
         if hdc_mem.is_invalid() {
-            ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
-            return None;
+            ReleaseDC(HWND::default(), hdc_screen);
+            return Err("CreateCompatibleDC failed".into());
         }
+
         let hbm = CreateCompatibleBitmap(hdc_screen, w, h);
         if hbm.is_invalid() {
             let _ = DeleteDC(hdc_mem);
-            ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
-            return None;
+            ReleaseDC(HWND::default(), hdc_screen);
+            return Err("CreateCompatibleBitmap failed".into());
         }
-        let old_obj = SelectObject(hdc_mem, hbm);
 
-        // Copy screen to memory bitmap
+        let old_obj = SelectObject(hdc_mem, hbm);
         let _ = BitBlt(hdc_mem, 0, 0, w, h, hdc_screen, 0, 0, SRCCOPY);
 
-        // Read pixel data
-        let bmi = BITMAPINFO {
+        let mut bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: w,
@@ -264,23 +262,27 @@ fn capture_screen_frame() -> Option<Vec<u8>> {
             },
             ..Default::default()
         };
+
         let buf_size = (w * h * 4) as usize;
         let mut bgra = vec![0u8; buf_size];
-        GetDIBits(
+        let lines = GetDIBits(
             hdc_mem,
             hbm,
             0,
             h as u32,
             Some(bgra.as_mut_ptr() as *mut _),
-            &mut { bmi } as *mut BITMAPINFO,
+            &mut bmi,
             DIB_RGB_COLORS,
         );
 
-        // Cleanup GDI
         SelectObject(hdc_mem, old_obj);
         let _ = DeleteObject(hbm);
         let _ = DeleteDC(hdc_mem);
-        ReleaseDC(windows::Win32::Foundation::HWND::default(), hdc_screen);
+        ReleaseDC(HWND::default(), hdc_screen);
+
+        if lines == 0 {
+            return Err("GetDIBits returned 0 lines".into());
+        }
 
         // Convert BGRA → RGB
         let pixel_count = (w * h) as usize;
@@ -293,40 +295,26 @@ fn capture_screen_frame() -> Option<Vec<u8>> {
 
         // Encode JPEG
         use image::codecs::jpeg::JpegEncoder;
-        let img = image::RgbImage::from_raw(w as u32, h as u32, rgb)?;
+        let img = image::RgbImage::from_raw(w as u32, h as u32, rgb)
+            .ok_or("RgbImage::from_raw failed")?;
         let mut jpeg_buf = Vec::new();
         let encoder = JpegEncoder::new_with_quality(&mut jpeg_buf, 50);
-        img.write_with_encoder(encoder).ok()?;
+        img.write_with_encoder(encoder).map_err(|e| format!("JPEG encode: {}", e))?;
 
-        Some(jpeg_buf)
+        Ok(jpeg_buf)
     }
 }
 
+/// Called from JS per-frame to get a screen capture as base64 JPEG
 #[tauri::command]
-fn start_screen_capture(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
-    let capturing = state.capturing.clone();
-    if capturing.load(Ordering::SeqCst) {
-        return Ok(());
+fn capture_frame() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let jpeg = capture_screen_gdi()?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&jpeg))
     }
-    capturing.store(true, Ordering::SeqCst);
-
-    std::thread::spawn(move || {
-        while capturing.load(Ordering::SeqCst) {
-            #[cfg(target_os = "windows")]
-            if let Some(jpeg) = capture_screen_frame() {
-                let b64 = base64::engine::general_purpose::STANDARD.encode(&jpeg);
-                let _ = app.emit("screen-frame", b64);
-            }
-            std::thread::sleep(std::time::Duration::from_millis(66)); // ~15fps
-        }
-    });
-
-    Ok(())
-}
-
-#[tauri::command]
-fn stop_screen_capture(state: tauri::State<'_, AppState>) {
-    state.capturing.store(false, Ordering::SeqCst);
+    #[cfg(not(target_os = "windows"))]
+    Err("Screen capture not supported on this platform".into())
 }
 
 // ── Control State ──
@@ -353,7 +341,6 @@ fn control_revoke(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> R
 #[tauri::command]
 fn session_ended(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
     *state.control_active.lock().unwrap() = false;
-    state.capturing.store(false, Ordering::SeqCst);
     destroy_toolbar(app)?;
     Ok(())
 }
@@ -497,7 +484,6 @@ fn file_end(
 struct AppState {
     control_active: Mutex<bool>,
     pending_files: Mutex<HashMap<String, PendingFile>>,
-    capturing: Arc<AtomicBool>,
 }
 
 // ── App Entry ──
@@ -511,14 +497,12 @@ pub fn run() {
         .manage(AppState {
             control_active: Mutex::new(false),
             pending_files: Mutex::new(HashMap::new()),
-            capturing: Arc::new(AtomicBool::new(false)),
         })
         .invoke_handler(tauri::generate_handler![
             get_screen_size,
             handle_input_event,
             send_sas,
-            start_screen_capture,
-            stop_screen_capture,
+            capture_frame,
             control_granted,
             control_denied,
             control_revoke,

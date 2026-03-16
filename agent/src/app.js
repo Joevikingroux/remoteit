@@ -13,7 +13,7 @@ let clipboardPollInterval = null;
 let lastClipboardText = '';
 let captureCanvas = null;
 let captureCtx = null;
-let captureUnlisten = null;
+let captureRunning = false;
 
 // ── DOM Elements ──
 const connectScreen = document.getElementById('connect-screen');
@@ -34,36 +34,57 @@ const consentTechName = document.getElementById('consent-tech-name');
 const consentAllow = document.getElementById('consent-allow');
 const consentDeny = document.getElementById('consent-deny');
 
-// ── Screen Capture (native via Rust xcap — no browser picker) ──
+// ── Screen Capture (native Win32 GDI via Rust — no browser picker) ──
+// JS polls Rust's capture_frame command, draws on canvas, feeds to WebRTC
 async function startCapture() {
   captureCanvas = document.createElement('canvas');
   captureCtx = captureCanvas.getContext('2d');
 
+  // Capture first frame to get screen dimensions and verify capture works
+  const firstFrame = await window.__TAURI__.core.invoke('capture_frame');
+
   return new Promise((resolve, reject) => {
-    let resolved = false;
+    const img = new Image();
+    img.onload = () => {
+      captureCanvas.width = img.naturalWidth;
+      captureCanvas.height = img.naturalHeight;
+      captureCtx.drawImage(img, 0, 0);
+      localStream = captureCanvas.captureStream(15);
+      captureRunning = true;
 
-    window.__TAURI__.event.listen('screen-frame', (event) => {
-      const img = new Image();
-      img.onload = () => {
-        if (!resolved) {
-          captureCanvas.width = img.naturalWidth;
-          captureCanvas.height = img.naturalHeight;
-          captureCtx.drawImage(img, 0, 0);
-          localStream = captureCanvas.captureStream(15);
-          resolved = true;
-          resolve(localStream);
-        }
-        captureCtx.drawImage(img, 0, 0);
-      };
-      img.src = 'data:image/jpeg;base64,' + event.payload;
-    }).then(fn => { captureUnlisten = fn; });
+      // Start polling loop for subsequent frames
+      requestCaptureFrame();
 
-    window.__TAURI__.core.invoke('start_screen_capture').catch(reject);
-
-    setTimeout(() => {
-      if (!resolved) reject(new Error('Screen capture failed — no frames received'));
-    }, 10000);
+      resolve(localStream);
+    };
+    img.onerror = () => reject(new Error('Failed to decode screen capture frame'));
+    img.src = 'data:image/jpeg;base64,' + firstFrame;
   });
+}
+
+async function requestCaptureFrame() {
+  if (!captureRunning) return;
+
+  try {
+    const b64 = await window.__TAURI__.core.invoke('capture_frame');
+    const img = new Image();
+    img.onload = () => {
+      if (captureRunning && captureCtx) {
+        captureCtx.drawImage(img, 0, 0);
+      }
+      // Schedule next frame after this one is drawn
+      if (captureRunning) {
+        setTimeout(requestCaptureFrame, 66); // ~15fps
+      }
+    };
+    img.onerror = () => {
+      if (captureRunning) setTimeout(requestCaptureFrame, 100);
+    };
+    img.src = 'data:image/jpeg;base64,' + b64;
+  } catch (e) {
+    console.error('Capture frame error:', e);
+    if (captureRunning) setTimeout(requestCaptureFrame, 200);
+  }
 }
 
 // ── Clipboard Auto-Sync ──
@@ -291,14 +312,10 @@ function revokeControl() {
 
 function endSession() {
   controlActive = false;
+  captureRunning = false;
   stopClipboardPolling();
   window.__TAURI__.core.invoke('session_ended');
-  window.__TAURI__.core.invoke('stop_screen_capture').catch(() => {});
 
-  if (captureUnlisten) {
-    captureUnlisten();
-    captureUnlisten = null;
-  }
   captureCanvas = null;
   captureCtx = null;
 
