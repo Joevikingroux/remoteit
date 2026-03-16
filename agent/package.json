@@ -1,50 +1,17 @@
 {
-  "name": "remoteit-agent",
+  "name": "numbers10-support",
   "version": "1.0.0",
-  "description": "RemoteIT Desktop Support Agent - Numbers10 IT Support",
+  "description": "Numbers10 IT Support - Client Agent (Tauri)",
   "author": {
     "name": "Numbers10 IT",
     "email": "joe@numbers10.co.za"
   },
-  "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "build:win": "electron-builder --win portable",
-    "build:win:installer": "electron-builder --win nsis"
-  },
-  "dependencies": {
-    "koffi": "^2.9.0",
-    "socket.io-client": "^4.8.1"
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
   },
   "devDependencies": {
-    "electron": "^33.3.1",
-    "electron-builder": "^25.1.8"
-  },
-  "build": {
-    "appId": "com.numbers10.remoteit-agent",
-    "productName": "Numbers10 IT Support",
-    "copyright": "Copyright © 2026 Numbers10 IT",
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
-      "src/**/*",
-      "node_modules/**/*"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "portable",
-          "arch": ["x64"]
-        }
-      ],
-      "icon": "renderer/icon.ico",
-      "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": false
-    },
-    "portable": {
-      "artifactName": "Numbers10-Support.${ext}"
-    },
-    "compression": "normal"
+    "@tauri-apps/cli": "^2.10.1"
   }
 }

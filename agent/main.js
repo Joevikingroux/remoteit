@@ -136,17 +136,52 @@ ipcMain.on('control-revoke', () => {
 ipcMain.on('session-ended', () => {
   isControlActive = false;
   destroyControlToolbar();
+  stopClipboardPolling();
   globalShortcut.unregisterAll();
 });
 
-// ── Clipboard ──
+// ── Clipboard auto-sync ──
+let lastClipboardText = '';
+let clipboardPollInterval = null;
+
+function startClipboardPolling() {
+  if (clipboardPollInterval) return;
+  lastClipboardText = clipboard.readText() || '';
+  clipboardPollInterval = setInterval(() => {
+    try {
+      const text = clipboard.readText();
+      if (text && text !== lastClipboardText) {
+        lastClipboardText = text;
+        // Notify renderer to send clipboard to technician
+        mainWindow?.webContents.send('clipboard-changed', text);
+      }
+    } catch {}
+  }, 300);
+}
+
+function stopClipboardPolling() {
+  if (clipboardPollInterval) {
+    clearInterval(clipboardPollInterval);
+    clipboardPollInterval = null;
+  }
+}
+
 ipcMain.handle('clipboard-read', () => {
   return clipboard.readText();
 });
 
 ipcMain.handle('clipboard-write', (_event, text) => {
+  lastClipboardText = text; // prevent re-sending what we just received
   clipboard.writeText(text);
   return true;
+});
+
+ipcMain.on('start-clipboard-sync', () => {
+  startClipboardPolling();
+});
+
+ipcMain.on('stop-clipboard-sync', () => {
+  stopClipboardPolling();
 });
 
 // ── File Transfer (receive from technician) ──

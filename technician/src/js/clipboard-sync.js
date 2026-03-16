@@ -1,41 +1,56 @@
-// Clipboard sync via Tauri commands + DataChannel
+// Seamless clipboard sync — auto-syncs clipboard changes bidirectionally
+// like AnyDesk/TeamViewer. No buttons needed.
 const ClipboardSync = {
-  statusTimeout: null,
+  pollInterval: null,
+  lastText: '',
+  active: false,
 
-  async pasteToClient() {
-    try {
-      // Read clipboard using Tauri plugin
-      const text = await window.__TAURI__.clipboardManager.readText();
-      if (!text) {
-        this.showStatus('Clipboard is empty');
-        return;
-      }
-      WebRTCManager.sendInput({ type: 'clipboard-sync', text });
-      this.showStatus('Clipboard sent to client');
-    } catch (err) {
-      this.showStatus('Clipboard access failed');
+  // Start polling clipboard for changes — auto-sends to client
+  start() {
+    if (this.active) return;
+    this.active = true;
+    this.lastText = '';
+
+    this.pollInterval = setInterval(async () => {
+      try {
+        const text = await window.__TAURI__.clipboardManager.readText();
+        if (text && text !== this.lastText) {
+          this.lastText = text;
+          WebRTCManager.sendInput({ type: 'clipboard-sync', text });
+        }
+      } catch {}
+    }, 300);
+  },
+
+  stop() {
+    this.active = false;
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
     }
   },
 
-  copyFromClient() {
-    WebRTCManager.sendInput({ type: 'clipboard-request' });
-    this.showStatus('Requesting clipboard...');
-  },
-
+  // Called when clipboard text is received from client
   async onReceived(text) {
     try {
+      this.lastText = text; // prevent re-sending what we just received
       await window.__TAURI__.clipboardManager.writeText(text);
-      this.showStatus('Clipboard received from client');
-    } catch {
-      this.showStatus('Failed to write clipboard');
-    }
+    } catch {}
   },
 
-  showStatus(msg) {
-    const el = document.getElementById('clipboard-status');
-    el.textContent = msg;
-    el.classList.remove('hidden');
-    clearTimeout(this.statusTimeout);
-    this.statusTimeout = setTimeout(() => el.classList.add('hidden'), 3000);
+  // Sync current clipboard to client immediately (called before Ctrl+V)
+  async syncToClient() {
+    try {
+      const text = await window.__TAURI__.clipboardManager.readText();
+      if (text) {
+        this.lastText = text;
+        WebRTCManager.sendInput({ type: 'clipboard-sync', text });
+      }
+    } catch {}
+  },
+
+  // Request client's clipboard (called after Ctrl+C on remote)
+  requestFromClient() {
+    WebRTCManager.sendInput({ type: 'clipboard-request' });
   },
 };

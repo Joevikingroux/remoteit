@@ -82,16 +82,8 @@ const App = {
       Session.handleReleaseControl();
     });
 
-    document.getElementById('paste-to-client').addEventListener('click', () => {
-      ClipboardSync.pasteToClient();
-    });
-
-    document.getElementById('copy-from-client').addEventListener('click', () => {
-      ClipboardSync.copyFromClient();
-    });
-
-    document.getElementById('send-file-btn').addEventListener('click', () => {
-      FileTransfer.sendFile();
+    document.getElementById('sas-btn').addEventListener('click', () => {
+      WebRTCManager.sendInput({ type: 'send-sas' });
     });
 
     // ── Listen for toolbar release control event ──

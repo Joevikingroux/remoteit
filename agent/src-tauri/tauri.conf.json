@@ -1,23 +1,23 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Numbers10 Support Admin",
+  "productName": "Numbers10 Support",
   "version": "1.0.0",
-  "identifier": "co.za.numbers10.support-admin",
+  "identifier": "co.za.numbers10.support",
   "build": {
     "frontendDist": "../src",
     "beforeBuildCommand": ""
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
-        "title": "Numbers10 Support Admin",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
+        "title": "Numbers10 Support",
+        "width": 450,
+        "height": 520,
         "center": true,
-        "resizable": true,
+        "resizable": false,
+        "maximizable": false,
         "fullscreen": false
       }
     ],
@@ -27,7 +27,7 @@
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "iconAsTemplate": false,
-      "tooltip": "Numbers10 Support Admin"
+      "tooltip": "Numbers10 Support"
     }
   },
   "bundle": {
@@ -42,7 +42,8 @@
     ],
     "windows": {
       "nsis": {
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
       }
     }
   }

@@ -80,7 +80,7 @@ pub fn run() {
         .setup(|app| {
             // Set up system tray
             let _tray = tauri::tray::TrayIconBuilder::new()
-                .tooltip("Numbers10 RemoteIT")
+                .tooltip("Numbers10 Support Admin")
                 .on_tray_icon_event(|tray, event| {
                     if let tauri::tray::TrayIconEvent::Click { .. } = event {
                         let app = tray.app_handle();

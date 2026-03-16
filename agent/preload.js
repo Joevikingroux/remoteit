@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('agent', {
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
   clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', text),
 
+  // Clipboard auto-sync
+  startClipboardSync: () => ipcRenderer.send('start-clipboard-sync'),
+  stopClipboardSync: () => ipcRenderer.send('stop-clipboard-sync'),
+  onClipboardChanged: (callback) => ipcRenderer.on('clipboard-changed', (_e, text) => callback(text)),
+
   // File transfer (receive)
   fileStart: (data) => ipcRenderer.send('file-start', data),
   fileChunk: (data) => ipcRenderer.send('file-chunk', data),

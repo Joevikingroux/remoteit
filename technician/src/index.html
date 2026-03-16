@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Numbers10 RemoteIT</title>
+  <title>Numbers10 Support Admin</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
     <div class="login-container">
       <div class="login-card">
         <img src="assets/logo.jpg" alt="Numbers10" class="login-logo" />
-        <h1>Numbers10 RemoteIT</h1>
+        <h1>Numbers10 Support Admin</h1>
         <p class="subtitle">Technician Login</p>
         <form id="login-form" autocomplete="on">
           <div class="form-group">
@@ -37,7 +37,7 @@
     <div class="topbar">
       <div class="topbar-left">
         <img src="assets/logo.jpg" alt="Numbers10" class="topbar-logo" />
-        <span class="topbar-title">Numbers10 RemoteIT</span>
+        <span class="topbar-title">Numbers10 Support Admin</span>
       </div>
       <div class="topbar-right">
         <span id="user-name" class="user-label"></span>
@@ -95,22 +95,11 @@
         <span id="session-code-display" class="code-label"></span>
       </div>
       <div class="toolbar-right">
-        <div id="clipboard-buttons" class="hidden">
-          <button id="paste-to-client" class="btn-toolbar" title="Send your clipboard to client">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-            Paste to Client
-          </button>
-          <button id="copy-from-client" class="btn-toolbar" title="Get clipboard from client">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Copy from Client
-          </button>
-          <button id="send-file-btn" class="btn-toolbar" title="Send file to client">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-            Send File
-          </button>
-          <span class="toolbar-sep">|</span>
-        </div>
-
+        <button id="sas-btn" class="btn-toolbar hidden" title="Send Ctrl+Alt+Del to client (opens Task Manager)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Ctrl+Alt+Del
+        </button>
+        <span id="sas-sep" class="toolbar-sep hidden">|</span>
         <button id="control-btn" class="btn-warning hidden">Request Control</button>
         <button id="release-btn" class="btn-danger hidden">Release Control</button>
 
@@ -123,8 +112,7 @@
       </div>
     </div>
 
-    <!-- Status bars -->
-    <div id="clipboard-status" class="status-bar hidden"></div>
+    <!-- File transfer progress -->
     <div id="file-status" class="status-bar hidden"></div>
     <div id="control-active-bar" class="control-bar hidden">
       REMOTE CONTROL ACTIVE — Mouse and keyboard input is being sent to the client

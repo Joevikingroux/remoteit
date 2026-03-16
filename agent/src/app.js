@@ -1,4 +1,7 @@
-// socket.io is loaded globally via CDN script tag (window.io)
+// Numbers10 Support Agent — Tauri version
+// Uses Tauri APIs instead of Electron IPC
+
+const SERVER_URL = 'https://remoteit.numbers10.co.za';
 
 let socket = null;
 let peerConnection = null;
@@ -6,6 +9,8 @@ let localStream = null;
 let dataChannel = null;
 let sessionCode = null;
 let controlActive = false;
+let clipboardPollInterval = null;
+let lastClipboardText = '';
 
 // ── DOM Elements ──
 const connectScreen = document.getElementById('connect-screen');
@@ -26,25 +31,13 @@ const consentTechName = document.getElementById('consent-tech-name');
 const consentAllow = document.getElementById('consent-allow');
 const consentDeny = document.getElementById('consent-deny');
 
-// ── Screen Capture ──
+// ── Screen Capture (WebView2 getDisplayMedia) ──
 async function startCapture() {
   try {
-    const sources = await window.agent.getSources();
-    if (sources.length === 0) throw new Error('No screen sources found');
-
-    const sourceId = sources[0].id;
-
-    localStream = await navigator.mediaDevices.getUserMedia({
+    localStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30 } },
       audio: false,
-      video: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: sourceId,
-          maxFrameRate: 30,
-        },
-      },
     });
-
     return localStream;
   } catch (err) {
     console.error('Screen capture failed:', err);
@@ -52,11 +45,35 @@ async function startCapture() {
   }
 }
 
+// ── Clipboard Auto-Sync ──
+function startClipboardPolling() {
+  if (clipboardPollInterval) return;
+  // Read initial clipboard
+  window.__TAURI__.clipboardManager.readText().then(t => { lastClipboardText = t || ''; }).catch(() => {});
+
+  clipboardPollInterval = setInterval(async () => {
+    try {
+      const text = await window.__TAURI__.clipboardManager.readText();
+      if (text && text !== lastClipboardText) {
+        lastClipboardText = text;
+        if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify({ type: 'clipboard-sync', text }));
+        }
+      }
+    } catch {}
+  }, 300);
+}
+
+function stopClipboardPolling() {
+  if (clipboardPollInterval) {
+    clearInterval(clipboardPollInterval);
+    clipboardPollInterval = null;
+  }
+}
+
 // ── Socket.IO Connection ──
 async function connectToServer(code) {
-  const serverUrl = await window.agent.getServerUrl();
-
-  socket = io(serverUrl, {
+  socket = io(SERVER_URL, {
     transports: ['websocket'],
   });
 
@@ -144,37 +161,51 @@ async function setupWebRTC() {
           return;
         }
 
+        // Ctrl+Alt+Del (sends Ctrl+Shift+Esc to open Task Manager)
+        if (inputEvent.type === 'send-sas') {
+          window.__TAURI__.core.invoke('send_sas');
+          return;
+        }
+
         // Clipboard sync: technician sends their clipboard text — auto-write
         if (inputEvent.type === 'clipboard-sync') {
-          await window.agent.clipboardWrite(inputEvent.text);
+          lastClipboardText = inputEvent.text; // prevent re-sending
+          await window.__TAURI__.clipboardManager.writeText(inputEvent.text);
           return;
         }
 
         // Clipboard request: technician wants our clipboard
         if (inputEvent.type === 'clipboard-request') {
-          const text = await window.agent.clipboardRead();
+          const text = await window.__TAURI__.clipboardManager.readText();
           if (dataChannel && dataChannel.readyState === 'open') {
-            dataChannel.send(JSON.stringify({ type: 'clipboard-sync', text }));
+            dataChannel.send(JSON.stringify({ type: 'clipboard-sync', text: text || '' }));
           }
           return;
         }
 
-        // File transfer: receive file from technician
+        // File transfer: receive file from technician via Rust backend
         if (inputEvent.type === 'file-start') {
-          window.agent.fileStart({ fileId: inputEvent.fileId, filename: inputEvent.filename, size: inputEvent.size });
+          window.__TAURI__.core.invoke('file_start', {
+            data: { fileId: inputEvent.fileId, filename: inputEvent.filename, size: inputEvent.size }
+          });
           return;
         }
         if (inputEvent.type === 'file-chunk') {
-          window.agent.fileChunk({ fileId: inputEvent.fileId, chunk: inputEvent.chunk });
+          window.__TAURI__.core.invoke('file_chunk', {
+            data: { fileId: inputEvent.fileId, chunk: inputEvent.chunk }
+          });
           return;
         }
         if (inputEvent.type === 'file-end') {
-          window.agent.fileEnd({ fileId: inputEvent.fileId });
+          window.__TAURI__.core.invoke('file_end', {
+            data: { fileId: inputEvent.fileId }
+          });
           return;
         }
 
+        // Input events — forward to Rust for injection
         if (controlActive) {
-          window.agent.sendInputEvent(inputEvent);
+          window.__TAURI__.core.invoke('handle_input_event', { event: inputEvent });
         }
       } catch (e) {
         console.error('Invalid input event:', e);
@@ -182,14 +213,7 @@ async function setupWebRTC() {
     };
 
     // Start clipboard auto-sync when DataChannel is ready
-    window.agent.startClipboardSync();
-
-    // Send clipboard changes to technician automatically
-    window.agent.onClipboardChanged((text) => {
-      if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'clipboard-sync', text }));
-      }
-    });
+    startClipboardPolling();
   };
 
   peerConnection.onicecandidate = (event) => {
@@ -213,7 +237,7 @@ function grantControl() {
   consentOverlay.classList.add('hidden');
   controlStatus.classList.remove('hidden');
   revokeBtn.classList.remove('hidden');
-  window.agent.controlGranted();
+  window.__TAURI__.core.invoke('control_granted');
 
   if (dataChannel && dataChannel.readyState === 'open') {
     dataChannel.send(JSON.stringify({ type: 'control-response', granted: true }));
@@ -223,7 +247,7 @@ function grantControl() {
 
 function denyControl() {
   consentOverlay.classList.add('hidden');
-  window.agent.controlDenied();
+  window.__TAURI__.core.invoke('control_denied');
 
   if (dataChannel && dataChannel.readyState === 'open') {
     dataChannel.send(JSON.stringify({ type: 'control-response', granted: false }));
@@ -236,7 +260,7 @@ function revokeControl() {
   controlActive = false;
   controlStatus.classList.add('hidden');
   revokeBtn.classList.add('hidden');
-  window.agent.controlRevoke();
+  window.__TAURI__.core.invoke('control_revoke');
 
   if (dataChannel && dataChannel.readyState === 'open') {
     dataChannel.send(JSON.stringify({ type: 'control-revoke' }));
@@ -246,7 +270,8 @@ function revokeControl() {
 
 function endSession() {
   controlActive = false;
-  window.agent.sessionEnded();
+  stopClipboardPolling();
+  window.__TAURI__.core.invoke('session_ended');
 
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
@@ -286,18 +311,14 @@ function showSession(code) {
 
 // ── Event Listeners ──
 
-// Main button: Create session + start capture
 createBtn.addEventListener('click', async () => {
   createBtn.disabled = true;
   createBtn.textContent = 'Starting...';
 
   try {
-    // First capture screen (needs user gesture in Electron)
     await startCapture();
 
-    // Then create session on server
-    const serverUrl = await window.agent.getServerUrl();
-    const res = await fetch(`${serverUrl}/api/sessions/create`, {
+    const res = await fetch(`${SERVER_URL}/api/sessions/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -314,7 +335,6 @@ createBtn.addEventListener('click', async () => {
   }
 });
 
-// Secondary: Enter existing code
 connectBtn.addEventListener('click', async () => {
   const code = codeInput.value.toUpperCase().replace(/[^A-Z2-9]/g, '');
   if (code.length !== 6) {
@@ -342,9 +362,19 @@ consentDeny.addEventListener('click', denyControl);
 revokeBtn.addEventListener('click', revokeControl);
 endBtn.addEventListener('click', endSession);
 
-// Handle Ctrl+Shift+F12 revoke from main process
-window.agent.onControlRevokedLocal(() => {
+// Handle Ctrl+Shift+F12 revoke from Rust backend
+window.__TAURI__.event.listen('control-revoked-local', () => {
   revokeControl();
+});
+
+// Handle toolbar revoke
+window.__TAURI__.event.listen('toolbar-revoke-control', () => {
+  revokeControl();
+});
+
+// Handle file received notification
+window.__TAURI__.event.listen('file-received', (event) => {
+  console.log('File received:', event.payload.filename, 'at', event.payload.path);
 });
 
 // Auto-uppercase code input

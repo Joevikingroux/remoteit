@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numbers10 Support</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="logo.jpg" alt="Numbers10" class="logo" />
+      <div class="header-text">
+        <h1>Numbers10 Support</h1>
+        <p>Remote Support Session</p>
+      </div>
+    </div>
+
+    <!-- Connect Screen -->
+    <div id="connect-screen" class="screen active">
+      <p class="info-text">Click <strong>Start Support Session</strong> to generate a code and share your screen with your technician.</p>
+
+      <button id="create-btn" class="btn btn-primary btn-large">Start Support Session</button>
+
+      <div class="divider"><span>or enter a code from your technician</span></div>
+
+      <div class="code-input-group">
+        <input type="text" id="code-input" maxlength="6" placeholder="ABC123"
+               spellcheck="false" autocomplete="off">
+        <button id="connect-btn" class="btn btn-secondary">Connect</button>
+      </div>
+
+      <div id="connect-error" class="error hidden"></div>
+    </div>
+
+    <!-- Session Active Screen -->
+    <div id="session-screen" class="screen">
+      <div class="session-code-display">
+        <span class="label">Your Session Code</span>
+        <span id="session-code" class="code"></span>
+      </div>
+
+      <p class="share-hint">Give this code to your technician so they can connect</p>
+
+      <div id="status-indicator" class="status">
+        <span class="dot"></span>
+        <span id="status-text">Waiting for technician to connect...</span>
+      </div>
+
+      <div id="control-status" class="control-status hidden">
+        <span class="control-dot"></span>
+        <span id="control-text">Remote control active</span>
+      </div>
+
+      <div class="session-actions">
+        <button id="revoke-btn" class="btn btn-warning hidden">Stop Remote Control</button>
+        <button id="end-btn" class="btn btn-danger">End Session</button>
+      </div>
+
+      <p class="hotkey-hint">Press <kbd>Ctrl+Shift+F12</kbd> to instantly revoke control</p>
+    </div>
+
+    <!-- Consent Dialog (overlay) -->
+    <div id="consent-overlay" class="overlay hidden">
+      <div class="consent-dialog">
+        <div class="consent-icon">🔒</div>
+        <h2>Remote Control Request</h2>
+        <p><strong id="consent-tech-name">Technician</strong> is requesting permission to control your mouse and keyboard.</p>
+        <p class="consent-note">You can revoke access at any time by pressing <kbd>Ctrl+Shift+F12</kbd> or clicking "Stop Control".</p>
+        <div class="consent-actions">
+          <button id="consent-allow" class="btn btn-primary">Allow Control</button>
+          <button id="consent-deny" class="btn btn-secondary">Deny</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
