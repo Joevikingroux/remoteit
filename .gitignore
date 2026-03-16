@@ -12,4 +12,3 @@ technician/src-tauri/target/
 technician/src-tauri/gen/
 agent/src-tauri/target/
 agent/src-tauri/gen/
-downloads/*.exe
