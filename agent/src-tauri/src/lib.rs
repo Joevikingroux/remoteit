@@ -217,21 +217,23 @@ fn send_sas() {
 fn capture_screen_gdi() -> Result<Vec<u8>, String> {
     use windows::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-        GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
-        DIB_RGB_COLORS, SRCCOPY,
+        GetDC, GetDeviceCaps, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO,
+        BITMAPINFOHEADER, DESKTOPHORZRES, DESKTOPVERTRES, DIB_RGB_COLORS, SRCCOPY,
     };
     use windows::Win32::Foundation::HWND;
 
     unsafe {
-        let w = GetSystemMetrics(SM_CXSCREEN);
-        let h = GetSystemMetrics(SM_CYSCREEN);
-        if w <= 0 || h <= 0 {
-            return Err(format!("Invalid screen size: {}x{}", w, h));
-        }
-
         let hdc_screen = GetDC(HWND::default());
         if hdc_screen.is_invalid() {
             return Err("GetDC failed".into());
+        }
+
+        // Physical pixel dimensions — not DPI-scaled
+        let w = GetDeviceCaps(hdc_screen, DESKTOPHORZRES);
+        let h = GetDeviceCaps(hdc_screen, DESKTOPVERTRES);
+        if w <= 0 || h <= 0 {
+            ReleaseDC(HWND::default(), hdc_screen);
+            return Err(format!("Invalid screen size: {}x{}", w, h));
         }
 
         let hdc_mem = CreateCompatibleDC(hdc_screen);
@@ -320,10 +322,8 @@ fn capture_frame() -> Result<String, String> {
 // ── Control State ──
 
 #[tauri::command]
-fn control_granted(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn control_granted(state: tauri::State<'_, AppState>) {
     *state.control_active.lock().unwrap() = true;
-    create_toolbar(app)?;
-    Ok(())
 }
 
 #[tauri::command]
@@ -332,56 +332,15 @@ fn control_denied(state: tauri::State<'_, AppState>) {
 }
 
 #[tauri::command]
-fn control_revoke(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn control_revoke(state: tauri::State<'_, AppState>) {
     *state.control_active.lock().unwrap() = false;
-    destroy_toolbar(app)?;
-    Ok(())
 }
 
 #[tauri::command]
-fn session_ended(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn session_ended(state: tauri::State<'_, AppState>) {
     *state.control_active.lock().unwrap() = false;
-    destroy_toolbar(app)?;
-    Ok(())
 }
 
-// ── Toolbar Window ──
-
-fn create_toolbar(app: tauri::AppHandle) -> Result<(), String> {
-    if app.get_webview_window("toolbar").is_some() {
-        return Ok(());
-    }
-
-    let monitor = app.primary_monitor().map_err(|e| e.to_string())?;
-    let screen_width = monitor.map(|m| m.size().width).unwrap_or(1920);
-
-    let toolbar_width = 400.0;
-    let x = ((screen_width as f64 - toolbar_width) / 2.0) as i32;
-
-    tauri::WebviewWindowBuilder::new(
-        &app,
-        "toolbar",
-        tauri::WebviewUrl::App("toolbar.html".into()),
-    )
-    .title("Remote Control Active")
-    .inner_size(toolbar_width, 50.0)
-    .position(x as f64, 0.0)
-    .decorations(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .resizable(false)
-    .build()
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-fn destroy_toolbar(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("toolbar") {
-        window.close().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
 
 // ── File Transfer (receive from technician) ──
 
@@ -524,7 +483,6 @@ pub fn run() {
                         was
                     };
                     if was_active {
-                        let _ = destroy_toolbar(app.clone());
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.emit("control-revoked-local", "");
                         }
