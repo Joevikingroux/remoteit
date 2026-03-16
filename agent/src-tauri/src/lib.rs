@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
@@ -209,6 +210,47 @@ fn send_sas() {
     }
 }
 
+// ── Native Screen Capture ──
+// Captures the primary monitor using xcap (no browser picker needed)
+
+#[tauri::command]
+fn start_screen_capture(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+    let capturing = state.capturing.clone();
+    if capturing.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+    capturing.store(true, Ordering::SeqCst);
+
+    std::thread::spawn(move || {
+        let monitors = xcap::Monitor::all().unwrap_or_default();
+        let monitor = match monitors.into_iter().find(|m| m.is_primary()) {
+            Some(m) => m,
+            None => {
+                eprintln!("No primary monitor found");
+                return;
+            }
+        };
+
+        while capturing.load(Ordering::SeqCst) {
+            if let Ok(img) = monitor.capture_image() {
+                let mut buf = std::io::Cursor::new(Vec::new());
+                if img.write_to(&mut buf, xcap::image::ImageFormat::Jpeg).is_ok() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(buf.into_inner());
+                    let _ = app.emit("screen-frame", b64);
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(66)); // ~15fps
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_screen_capture(state: tauri::State<'_, AppState>) {
+    state.capturing.store(false, Ordering::SeqCst);
+}
+
 // ── Control State ──
 
 #[tauri::command]
@@ -233,6 +275,7 @@ fn control_revoke(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> R
 #[tauri::command]
 fn session_ended(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
     *state.control_active.lock().unwrap() = false;
+    state.capturing.store(false, Ordering::SeqCst);
     destroy_toolbar(app)?;
     Ok(())
 }
@@ -376,6 +419,7 @@ fn file_end(
 struct AppState {
     control_active: Mutex<bool>,
     pending_files: Mutex<HashMap<String, PendingFile>>,
+    capturing: Arc<AtomicBool>,
 }
 
 // ── App Entry ──
@@ -389,11 +433,14 @@ pub fn run() {
         .manage(AppState {
             control_active: Mutex::new(false),
             pending_files: Mutex::new(HashMap::new()),
+            capturing: Arc::new(AtomicBool::new(false)),
         })
         .invoke_handler(tauri::generate_handler![
             get_screen_size,
             handle_input_event,
             send_sas,
+            start_screen_capture,
+            stop_screen_capture,
             control_granted,
             control_denied,
             control_revoke,

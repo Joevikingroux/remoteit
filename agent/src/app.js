@@ -11,6 +11,9 @@ let sessionCode = null;
 let controlActive = false;
 let clipboardPollInterval = null;
 let lastClipboardText = '';
+let captureCanvas = null;
+let captureCtx = null;
+let captureUnlisten = null;
 
 // ── DOM Elements ──
 const connectScreen = document.getElementById('connect-screen');
@@ -31,18 +34,36 @@ const consentTechName = document.getElementById('consent-tech-name');
 const consentAllow = document.getElementById('consent-allow');
 const consentDeny = document.getElementById('consent-deny');
 
-// ── Screen Capture (WebView2 getDisplayMedia) ──
+// ── Screen Capture (native via Rust xcap — no browser picker) ──
 async function startCapture() {
-  try {
-    localStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30 } },
-      audio: false,
-    });
-    return localStream;
-  } catch (err) {
-    console.error('Screen capture failed:', err);
-    throw err;
-  }
+  captureCanvas = document.createElement('canvas');
+  captureCtx = captureCanvas.getContext('2d');
+
+  return new Promise((resolve, reject) => {
+    let resolved = false;
+
+    window.__TAURI__.event.listen('screen-frame', (event) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!resolved) {
+          captureCanvas.width = img.naturalWidth;
+          captureCanvas.height = img.naturalHeight;
+          captureCtx.drawImage(img, 0, 0);
+          localStream = captureCanvas.captureStream(15);
+          resolved = true;
+          resolve(localStream);
+        }
+        captureCtx.drawImage(img, 0, 0);
+      };
+      img.src = 'data:image/jpeg;base64,' + event.payload;
+    }).then(fn => { captureUnlisten = fn; });
+
+    window.__TAURI__.core.invoke('start_screen_capture').catch(reject);
+
+    setTimeout(() => {
+      if (!resolved) reject(new Error('Screen capture failed — no frames received'));
+    }, 10000);
+  });
 }
 
 // ── Clipboard Auto-Sync ──
@@ -272,6 +293,14 @@ function endSession() {
   controlActive = false;
   stopClipboardPolling();
   window.__TAURI__.core.invoke('session_ended');
+  window.__TAURI__.core.invoke('stop_screen_capture').catch(() => {});
+
+  if (captureUnlisten) {
+    captureUnlisten();
+    captureUnlisten = null;
+  }
+  captureCanvas = null;
+  captureCtx = null;
 
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
