@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS sessions (
     connected_at TEXT,
     ended_at TEXT,
     end_reason TEXT,
-    duration_seconds INTEGER
+    duration_seconds INTEGER,
+    notes TEXT,
+    tags TEXT DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (

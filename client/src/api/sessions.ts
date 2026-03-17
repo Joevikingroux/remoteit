@@ -34,3 +34,10 @@ export async function endSessionApi(code: string, reason = 'manual') {
     skipAuth: true,
   });
 }
+
+export async function updateSessionNotes(code: string, notes: string, tags: string[]) {
+  return apiFetch(`/sessions/${code}/notes`, {
+    method: 'PUT',
+    body: JSON.stringify({ notes, tags }),
+  });
+}

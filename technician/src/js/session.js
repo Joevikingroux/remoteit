@@ -119,11 +119,40 @@ const Session = {
     WebRTCManager.releaseControl(this.sessionCode);
   },
 
+  // Screenshot: capture current video frame as PNG
+  takeScreenshot() {
+    const video = document.getElementById('remote-video');
+    if (!video || !video.videoWidth) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `screenshot-${this.sessionCode}-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  },
+
   async endSession() {
+    // Save notes before ending
+    if (NotesPanel.notes || NotesPanel.tags.length > 0) {
+      await NotesPanel.save().catch(() => {});
+    }
     try {
       await apiFetch(`/sessions/${this.sessionCode}/end`, { method: 'POST' }).catch(() => {});
     } catch {}
     ClipboardSync.stop();
+    ChatPanel.reset();
+    SystemInfoPanel.reset();
+    NotesPanel.reset();
     WebRTCManager.close();
     SocketManager.disconnect();
     window.__TAURI__?.core?.invoke('destroy_toolbar').catch(() => {});
@@ -202,6 +231,8 @@ const Session = {
 
     // Intercept Ctrl+C/V/X for seamless clipboard & file sync
     this._onKeyDown = async (e) => {
+      // Don't intercept if typing in chat or notes
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       e.preventDefault();
 
       // Ctrl+V: sync clipboard to client, then send paste
@@ -246,6 +277,7 @@ const Session = {
     };
 
     this._onKeyUp = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       e.preventDefault();
       // Skip key-up for keys we handled specially
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyV' || e.code === 'KeyC' || e.code === 'KeyX')) return;

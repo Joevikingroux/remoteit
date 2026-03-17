@@ -212,7 +212,16 @@ async function setupWebRTC() {
 }
 
 function setupDataChannelHandlers(dc) {
-  dc.onopen = () => console.log('Agent DataChannel open');
+  dc.onopen = async () => {
+    console.log('Agent DataChannel open');
+    // Send system info to technician on connect
+    try {
+      const sysInfo = await window.__TAURI__.core.invoke('get_system_info');
+      dc.send(JSON.stringify({ type: 'system-info', info: sysInfo }));
+    } catch (e) {
+      console.error('Failed to get system info:', e);
+    }
+  };
   dc.onclose = () => console.log('Agent DataChannel closed');
   dc.onmessage = async (msg) => {
       try {
@@ -231,6 +240,21 @@ function setupDataChannelHandlers(dc) {
         // Ctrl+Alt+Del (sends Ctrl+Shift+Esc to open Task Manager)
         if (inputEvent.type === 'send-sas') {
           window.__TAURI__.core.invoke('send_sas');
+          return;
+        }
+
+        // Chat message from technician — display in agent UI
+        if (inputEvent.type === 'chat') {
+          showChatMessage(inputEvent.sender, inputEvent.text, inputEvent.timestamp);
+          return;
+        }
+
+        // System info request — re-send system info
+        if (inputEvent.type === 'system-info-request') {
+          const sysInfo = await window.__TAURI__.core.invoke('get_system_info');
+          if (dataChannel && dataChannel.readyState === 'open') {
+            dataChannel.send(JSON.stringify({ type: 'system-info', info: sysInfo }));
+          }
           return;
         }
 
@@ -281,6 +305,52 @@ function setupDataChannelHandlers(dc) {
 
   // Start clipboard auto-sync when DataChannel is ready
   startClipboardPolling();
+}
+
+// ── Chat ──
+function showChatMessage(sender, text, timestamp) {
+  const chatMessages = document.getElementById('chat-messages');
+  if (!chatMessages) return;
+
+  const msgEl = document.createElement('div');
+  msgEl.className = `chat-msg chat-msg-${sender}`;
+
+  const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  msgEl.innerHTML = `<span class="chat-sender">${sender === 'technician' ? 'Tech' : 'You'}</span>
+    <span class="chat-text">${escapeHtml(text)}</span>
+    <span class="chat-time">${time}</span>`;
+
+  chatMessages.appendChild(msgEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // Show chat notification dot if chat panel is hidden
+  const chatPanel = document.getElementById('chat-panel');
+  if (chatPanel && chatPanel.classList.contains('hidden')) {
+    const chatBadge = document.getElementById('chat-badge');
+    if (chatBadge) chatBadge.classList.remove('hidden');
+  }
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  const timestamp = new Date().toISOString();
+  if (dataChannel && dataChannel.readyState === 'open') {
+    dataChannel.send(JSON.stringify({ type: 'chat', sender: 'client', text, timestamp }));
+  }
+
+  showChatMessage('client', text, timestamp);
+  input.value = '';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // ── Control Flow ──
@@ -432,6 +502,16 @@ window.__TAURI__.event.listen('toolbar-revoke-control', () => {
 window.__TAURI__.event.listen('file-received', (event) => {
   console.log('File received:', event.payload.filename, 'at', event.payload.path);
 });
+
+// ── Chat toggle ──
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  const badge = document.getElementById('chat-badge');
+  if (panel) {
+    panel.classList.toggle('hidden');
+    if (badge) badge.classList.add('hidden');
+  }
+}
 
 // Auto-uppercase code input
 codeInput.addEventListener('input', () => {

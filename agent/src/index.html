@@ -60,6 +60,21 @@
       </div>
 
       <p class="hotkey-hint">Press <kbd>Ctrl+Shift+F12</kbd> to instantly revoke control</p>
+
+      <!-- Chat Panel -->
+      <div class="chat-toggle-row">
+        <button id="chat-toggle-btn" class="btn btn-secondary btn-small" onclick="toggleChat()">
+          Chat <span id="chat-badge" class="chat-badge hidden"></span>
+        </button>
+      </div>
+      <div id="chat-panel" class="chat-panel hidden">
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){sendChatMessage();event.stopPropagation();}">
+          <button class="btn btn-primary btn-small" onclick="sendChatMessage()">Send</button>
+        </div>
+      </div>
     </div>
 
     <!-- Consent Dialog (overlay) -->

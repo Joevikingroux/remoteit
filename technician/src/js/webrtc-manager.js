@@ -47,6 +47,10 @@ const WebRTCManager = {
             if (this.onControlChanged) this.onControlChanged(false);
           } else if (data.type === 'clipboard-sync') {
             ClipboardSync.onReceived(data.text);
+          } else if (data.type === 'chat') {
+            if (typeof ChatPanel !== 'undefined') ChatPanel.onReceived(data);
+          } else if (data.type === 'system-info') {
+            if (typeof SystemInfoPanel !== 'undefined') SystemInfoPanel.onReceived(data.info);
           }
         } catch {}
       };

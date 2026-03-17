@@ -94,6 +94,22 @@ router.post('/:code/claim', authMiddleware, codeClaimLimiter, (req: AuthRequest,
   }
 });
 
+router.put('/:code/notes', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const { notes, tags } = req.body;
+    const result = sessionService.updateSessionNotes(
+      code,
+      notes || '',
+      Array.isArray(tags) ? tags : []
+    );
+    res.json(result);
+  } catch (err: any) {
+    const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: err.message });
+  }
+});
+
 router.post('/:code/end', (req: Request, res: Response) => {
   try {
     const code = req.params.code.toUpperCase();

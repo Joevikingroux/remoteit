@@ -101,6 +101,19 @@ export function cleanupExpiredSessions() {
   return result.changes;
 }
 
+export function updateSessionNotes(code: string, notes: string, tags: string[]) {
+  const session = getSessionByCode(code);
+  if (!session) throw new Error('Session not found');
+
+  db.prepare(
+    `UPDATE sessions SET notes = ?, tags = ? WHERE code = ?`
+  ).run(notes, JSON.stringify(tags), code);
+
+  logAudit({ sessionId: session.id, actor: 'technician', action: 'notes_updated', details: { tags } });
+
+  return { ...session, notes, tags };
+}
+
 export function getActiveSessions() {
   return db.prepare(
     `SELECT s.*, t.name as technician_name FROM sessions s

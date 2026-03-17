@@ -457,6 +457,105 @@ fn file_end(
     Ok(())
 }
 
+// ── System Info ──
+
+#[tauri::command]
+fn get_system_info() -> HashMap<String, String> {
+    let mut info = HashMap::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::System::SystemInformation::{
+            GlobalMemoryStatusEx, GetTickCount64, MEMORYSTATUSEX,
+        };
+
+        // OS version
+        info.insert("os".into(), std::env::consts::OS.into());
+
+        // Hostname
+        if let Ok(name) = std::env::var("COMPUTERNAME") {
+            info.insert("hostname".into(), name);
+        }
+
+        // Username
+        if let Ok(user) = std::env::var("USERNAME") {
+            info.insert("username".into(), user);
+        }
+
+        // CPU info
+        if let Ok(cpu) = std::env::var("PROCESSOR_IDENTIFIER") {
+            info.insert("cpu".into(), cpu);
+        }
+        if let Ok(cores) = std::env::var("NUMBER_OF_PROCESSORS") {
+            info.insert("cores".into(), cores);
+        }
+
+        // Memory
+        unsafe {
+            let mut mem = MEMORYSTATUSEX {
+                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+                ..Default::default()
+            };
+            if GlobalMemoryStatusEx(&mut mem).is_ok() {
+                let total_gb = mem.ullTotalPhys as f64 / (1024.0 * 1024.0 * 1024.0);
+                let used_gb = (mem.ullTotalPhys - mem.ullAvailPhys) as f64 / (1024.0 * 1024.0 * 1024.0);
+                info.insert("ram_total".into(), format!("{:.1} GB", total_gb));
+                info.insert("ram_used".into(), format!("{:.1} GB", used_gb));
+                info.insert("ram_percent".into(), format!("{}%", mem.dwMemoryLoad));
+            }
+        }
+
+        // Screen resolution
+        unsafe {
+            let w = GetSystemMetrics(SM_CXSCREEN);
+            let h = GetSystemMetrics(SM_CYSCREEN);
+            info.insert("resolution".into(), format!("{}x{}", w, h));
+        }
+
+        // Uptime
+        unsafe {
+            let ms = GetTickCount64();
+            let secs = ms / 1000;
+            let days = secs / 86400;
+            let hours = (secs % 86400) / 3600;
+            let mins = (secs % 3600) / 60;
+            info.insert("uptime".into(), format!("{}d {}h {}m", days, hours, mins));
+        }
+
+        // Disk info (C: drive)
+        if let Ok(paths) = fs::read_dir("C:\\") {
+            drop(paths);
+            // Use a simpler approach — read available space via Rust std
+            use std::process::Command;
+            if let Ok(output) = Command::new("wmic")
+                .args(["logicaldisk", "where", "DeviceID='C:'", "get", "Size,FreeSpace", "/format:csv"])
+                .output()
+            {
+                let text = String::from_utf8_lossy(&output.stdout);
+                for line in text.lines() {
+                    let parts: Vec<&str> = line.split(',').collect();
+                    if parts.len() >= 3 {
+                        if let (Ok(free), Ok(total)) = (parts[1].trim().parse::<u64>(), parts[2].trim().parse::<u64>()) {
+                            let total_gb = total as f64 / (1024.0 * 1024.0 * 1024.0);
+                            let free_gb = free as f64 / (1024.0 * 1024.0 * 1024.0);
+                            info.insert("disk_total".into(), format!("{:.0} GB", total_gb));
+                            info.insert("disk_free".into(), format!("{:.0} GB", free_gb));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        info.insert("os".into(), std::env::consts::OS.into());
+        info.insert("hostname".into(), "unknown".into());
+    }
+
+    info
+}
+
 // ── App State ──
 
 struct AppState {
@@ -488,6 +587,7 @@ pub fn run() {
             file_start,
             file_chunk,
             file_end,
+            get_system_info,
         ])
         .setup(|app| {
             // Register Ctrl+Shift+F12 global shortcut to revoke control

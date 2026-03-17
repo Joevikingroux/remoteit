@@ -106,14 +106,15 @@ export default function SessionHistoryPage() {
                   <th className="px-4 py-3 font-medium">Client IP</th>
                   <th className="px-4 py-3 font-medium">Technician</th>
                   <th className="px-4 py-3 font-medium">Duration</th>
+                  <th className="px-4 py-3 font-medium">Tags</th>
                   <th className="px-4 py-3 font-medium">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-n10-text-dim">Loading...</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-n10-text-dim">Loading...</td></tr>
                 ) : sessions.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-n10-text-dim">No sessions found</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-n10-text-dim">No sessions found</td></tr>
                 ) : (
                   sessions.map((s) => (
                     <tr key={s.id} className="border-b border-n10-border/50 hover:bg-n10-surface/50">
@@ -126,6 +127,25 @@ export default function SessionHistoryPage() {
                       <td className="px-4 py-3 text-n10-text-dim">{s.client_ip || '--'}</td>
                       <td className="px-4 py-3 text-n10-text">{s.technician_name || '--'}</td>
                       <td className="px-4 py-3 font-mono text-n10-text-dim">{formatDuration(s.duration_seconds)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {(() => {
+                            try {
+                              const tags = JSON.parse((s as any).tags || '[]');
+                              return (tags as string[]).map((tag: string) => (
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-n10-primary/20 text-n10-primary">
+                                  {tag}
+                                </span>
+                              ));
+                            } catch { return null; }
+                          })()}
+                        </div>
+                        {(s as any).notes && (
+                          <p className="text-[10px] text-n10-text-dim mt-1 truncate max-w-[150px]" title={(s as any).notes}>
+                            {(s as any).notes}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-n10-text-dim">{formatDate(s.created_at)}</td>
                     </tr>
                   ))
