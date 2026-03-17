@@ -20,7 +20,8 @@ body {
   background: var(--bg);
   color: var(--text);
   user-select: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .container {

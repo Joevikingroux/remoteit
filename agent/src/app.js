@@ -504,14 +504,25 @@ window.__TAURI__.event.listen('file-received', (event) => {
 });
 
 // ── Chat toggle ──
-function toggleChat() {
+document.getElementById('chat-toggle-btn').addEventListener('click', () => {
   const panel = document.getElementById('chat-panel');
   const badge = document.getElementById('chat-badge');
   if (panel) {
     panel.classList.toggle('hidden');
     if (badge) badge.classList.add('hidden');
   }
-}
+});
+
+document.getElementById('chat-send-btn').addEventListener('click', () => {
+  sendChatMessage();
+});
+
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.stopPropagation();
+    sendChatMessage();
+  }
+});
 
 // Auto-uppercase code input
 codeInput.addEventListener('input', () => {
