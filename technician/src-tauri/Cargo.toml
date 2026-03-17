@@ -23,6 +23,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-notification = "2"
 base64 = "0.22"
+dirs = "5"
 
 [profile.release]
 strip = true

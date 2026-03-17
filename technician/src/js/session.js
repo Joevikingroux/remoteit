@@ -130,15 +130,26 @@ const Session = {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `screenshot-${this.sessionCode}-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+    const filename = `screenshot-${this.sessionCode}-${Date.now()}.png`;
+
+    // Use Tauri save command if available, otherwise browser download
+    if (window.__TAURI__?.core?.invoke) {
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+      window.__TAURI__.core.invoke('save_screenshot', { filename, dataBase64: base64 })
+        .then((path) => console.log('Screenshot saved:', path))
+        .catch((err) => console.error('Screenshot save failed:', err));
+    } else {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    }
   },
 
   async endSession() {

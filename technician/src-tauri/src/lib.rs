@@ -65,6 +65,21 @@ fn destroy_toolbar(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn save_screenshot(filename: String, data_base64: String) -> Result<String, String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data_base64)
+        .map_err(|e| e.to_string())?;
+
+    let downloads = dirs::download_dir()
+        .or_else(|| dirs::home_dir().map(|h| h.join("Downloads")))
+        .ok_or("Cannot find Downloads folder")?;
+
+    let path = downloads.join(&filename);
+    fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -76,6 +91,7 @@ pub fn run() {
             read_file_base64,
             create_toolbar,
             destroy_toolbar,
+            save_screenshot,
         ])
         .setup(|app| {
             // Set up system tray
