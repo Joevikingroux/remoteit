@@ -49,7 +49,7 @@ const NotesPanel = {
     if (textarea) this.notes = textarea.value;
 
     try {
-      await apiFetch(`/sessions/${Session.sessionCode}/notes`, {
+      await apiFetch('/sessions/' + Session.sessionCode + '/notes', {
         method: 'PUT',
         body: JSON.stringify({ notes: this.notes, tags: this.tags }),
       });
@@ -65,22 +65,35 @@ const NotesPanel = {
     const container = document.getElementById('notes-content');
     if (!container) return;
 
-    let tagsHtml = this.AVAILABLE_TAGS.map(tag => {
-      const active = this.tags.includes(tag);
-      return `<button class="tag-btn ${active ? 'active' : ''}" onclick="NotesPanel.toggleTag('${tag}')">${tag}</button>`;
+    let tagsHtml = this.AVAILABLE_TAGS.map(function(tag) {
+      const active = NotesPanel.tags.indexOf(tag) >= 0;
+      return '<button class="tag-btn ' + (active ? 'active' : '') + '" data-tag="' + tag + '">' + tag + '</button>';
     }).join('');
 
-    container.innerHTML = `
-      <div class="notes-section">
-        <label class="panel-label">Tags</label>
-        <div class="tags-row">${tagsHtml}</div>
-      </div>
-      <div class="notes-section notes-grow">
-        <label class="panel-label">Notes</label>
-        <textarea id="notes-textarea" class="notes-textarea" placeholder="Session notes...">${this.escapeHtml(this.notes)}</textarea>
-      </div>
-      <button id="notes-save-btn" class="btn-primary notes-save-btn" onclick="NotesPanel.save()">Save Notes</button>
-    `;
+    container.innerHTML =
+      '<div class="notes-section">' +
+        '<label class="panel-label">Tags</label>' +
+        '<div class="tags-row">' + tagsHtml + '</div>' +
+      '</div>' +
+      '<div class="notes-section notes-grow">' +
+        '<label class="panel-label">Notes</label>' +
+        '<textarea id="notes-textarea" class="notes-textarea" placeholder="Session notes...">' + this.escapeHtml(this.notes) + '</textarea>' +
+      '</div>' +
+      '<button id="notes-save-btn" class="btn-primary notes-save-btn">Save Notes</button>';
+
+    // Bind events via addEventListener (not inline onclick)
+    container.querySelectorAll('.tag-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        NotesPanel.toggleTag(btn.getAttribute('data-tag'));
+      });
+    });
+
+    var saveBtn = document.getElementById('notes-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        NotesPanel.save();
+      });
+    }
   },
 
   escapeHtml(str) {

@@ -86,6 +86,51 @@ const App = {
       WebRTCManager.sendInput({ type: 'send-sas' });
     });
 
+    // ── Phase 3 toolbar buttons ──
+    document.getElementById('screenshot-btn').addEventListener('click', () => {
+      Session.takeScreenshot();
+    });
+
+    document.getElementById('sysinfo-btn').addEventListener('click', () => {
+      SystemInfoPanel.toggle();
+    });
+
+    document.getElementById('chat-btn').addEventListener('click', () => {
+      ChatPanel.toggle();
+    });
+
+    document.getElementById('notes-btn').addEventListener('click', () => {
+      NotesPanel.toggle();
+    });
+
+    // Panel close/action buttons
+    document.getElementById('chat-close-btn').addEventListener('click', () => {
+      ChatPanel.hide();
+    });
+
+    document.getElementById('chat-send-btn').addEventListener('click', () => {
+      ChatPanel.send();
+    });
+
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        ChatPanel.send();
+      }
+    });
+
+    document.getElementById('sysinfo-close-btn').addEventListener('click', () => {
+      SystemInfoPanel.hide();
+    });
+
+    document.getElementById('sysinfo-refresh-btn').addEventListener('click', () => {
+      SystemInfoPanel.refresh();
+    });
+
+    document.getElementById('notes-close-btn').addEventListener('click', () => {
+      NotesPanel.hide();
+    });
+
     // ── Listen for toolbar release control event ──
     if (window.__TAURI__?.event) {
       window.__TAURI__.event.listen('toolbar-release-control', () => {
